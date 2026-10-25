@@ -5,13 +5,8 @@
       "name": "twin",
       "runtimeExecutable": "python",
       "runtimeArgs": [
-        "-m",
-        "http.server",
-        "8000",
-        "--bind",
-        "127.0.0.1",
-        "--directory",
-        "C:/72_Hours"
+        "C:/72_Hours/tools/serve.py",
+        "8000"
       ],
       "port": 8000
     }

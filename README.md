@@ -20,12 +20,18 @@ platforms are structured.
 ## Run it
 
 ```bash
-python3 -m http.server 8000      # from the repository root
+python3 tools/serve.py           # http://localhost:8000
 # open http://localhost:8000              Nagpur (default)
 # open http://localhost:8000/?city=raleigh   the unseen-city test
 ```
 
-Any static file server works. Everything runs in the browser, offline: tiles, glyphs, the
+Any static file server works. `tools/serve.py` is the plain Python server plus two development
+conveniences:
+- It sends `Cache-Control: no-cache`, so the browser never mixes fresh and stale scripts.
+- It answers `/sw.js` with a self-removing service worker, which clears out a worker left on
+  `localhost:8000` by another project.
+
+If a page ever shows "Could not start the twin", reload once with Ctrl+Shift+R. Everything runs in the browser, offline: tiles, glyphs, the
 200-member ensemble and the assimilation all ship with the page. The one online feature is
 **Live weather**, which fetches the Open-Meteo GFS ensemble when you pick it from the scenario menu.
 

@@ -69,6 +69,7 @@
   async function init() {
     const step = (s) => { $('loadingStep').textContent = s; return nextFrame(); };
     const g = app.geo;
+    if (!g || !g.facilities) throw new Error(`no city data for "${CITY}" (src/js/data/geodata_${CITY}.js did not load). Reload with Ctrl+Shift+R`);
     C.setTZ(g.tz, g.tzLabel);
     document.title = `${g.city} Digital Twin · CASCADE 72`;
     document.querySelector('.brand-title').textContent = `${g.city} Digital Twin`;

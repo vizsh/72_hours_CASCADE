@@ -3,6 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>
+  // The twin registers no service worker. One left on this origin by another localhost
+  // project intercepts requests and serves stale scripts, so retire it and reload once.
+  (function () {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.getRegistrations().then(function (rs) {
+      if (!rs.length) return;
+      Promise.all(rs.map(function (r) { return r.unregister(); })).then(function () {
+        var again = false;
+        try { again = !sessionStorage.getItem('twin-sw-cleared'); sessionStorage.setItem('twin-sw-cleared', '1'); } catch (e) { /* storage blocked */ }
+        if (navigator.serviceWorker.controller && again) location.reload();
+      });
+    }).catch(function () {});
+  })();
+</script>
 <title>CASCADE 72 · Urban Digital Twin</title>
 <meta name="description" content="Urban digital twin of Nagpur (and Raleigh as an unseen-city test): real OpenStreetMap city model with a cascade-intelligence layer that predicts how floods, grid faults, toxic releases and crowds propagate through drainage, roads, power, telecom and hospitals up to 72 hours ahead.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Crect width='26' height='26' rx='5' fill='%23090b0e'/%3E%3Cpath d='M13 2.5 22 7.7v10.6L13 23.5 4 18.3V7.7z' fill='none' stroke='%2379a7e3' stroke-width='1.6'/%3E%3Cpath d='M8.5 16.5v-5l2.7-1.5v6.5M12.8 16.5V8.8l2.7-1.5v9.2' fill='none' stroke='%23e4e8ee' stroke-width='1.6'/%3E%3C/svg%3E">
@@ -150,14 +165,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.js"></script>
 <script>window.maplibregl || document.write('<script src="src/vendor/maplibre-gl-4.7.1.js"><\/script>');</script>
 <script>
-  // Load only the selected city's geodata (?city=nagpur | raleigh).
-  (function () {
+  // ?city=nagpur (default) | raleigh. Both cities' geodata load; the app picks one.
+  window.TWIN_CITY = (function () {
     var c = (new URLSearchParams(location.search).get('city') || 'nagpur').toLowerCase();
-    if (!/^[a-z-]+$/.test(c)) c = 'nagpur';
-    window.TWIN_CITY = c;
-    document.write('<script src="src/js/data/' + (c === 'raleigh' ? 'geodata.js' : 'geodata_' + c + '.js') + '"><\/script>');
+    return /^[a-z-]+$/.test(c) ? c : 'nagpur';
   })();
 </script>
+<script src="src/js/data/geodata_nagpur.js"></script>
+<script src="src/js/data/geodata.js"></script>
 <script src="src/js/core.js"></script>
 <script src="src/js/engine/scenarios.js"></script>
 <script src="src/js/engine/engine.js"></script>
