@@ -127,7 +127,7 @@
     const [W, S, E, N] = geo.extent;
     const style = root.TWIN.style.build({ tiles, glyphs, extent: geo.extent, attribution: geo.attribution });
     const map = new gl.Map({
-      container, style, ...OVERVIEW, antialias: true, attributionControl: false, minZoom: 10.6, maxZoom: 18.5, maxPitch: 75,
+      container, style, ...(geo.overview || OVERVIEW), antialias: true, attributionControl: false, minZoom: 10.6, maxZoom: 18.5, maxPitch: 75,
       maxBounds: [[W - 0.07, S - 0.06], [E + 0.07, N + 0.06]], fadeDuration: 120, dragRotate: true, pitchWithRotate: true,
     });
     await new Promise((res) => map.once('load', res));
@@ -144,15 +144,16 @@
     const { gl, map } = M;
     map.addControl(new gl.AttributionControl({ compact: true, customAttribution: geo.attribution }), 'bottom-right');
 
+    const OV = geo.overview || OVERVIEW;
     let padding = { top: 48, bottom: 110, left: 330, right: 10 };
     function setPadding(p) { padding = { ...padding, ...p }; map.easeTo({ padding, duration: 350 }); }
 
     function flyToFacility(f, opts = {}) {
-      const zoom = { hospital: 15.6, power: 15.8, traffic: 15.9, drainage: 15.9, weather: 14.8 }[f.type] || 15.8;
+      const zoom = { hospital: 15.6, power: 15.8, traffic: 15.9, drainage: 15.9, weather: 14.8, telecom: 15.4 }[f.type] || 15.8;
       map.flyTo({ center: f.lngLat, zoom: opts.zoom || zoom, pitch: 62, bearing: map.getBearing() + (opts.turn || 0), duration: opts.duration || 1200, curve: 1.42, padding, essential: true });
     }
     function overview(opts = {}) {
-      map.flyTo({ ...OVERVIEW, padding, duration: opts.duration || 1400, curve: 1.3, essential: true });
+      map.flyTo({ ...OV, padding, duration: opts.duration || 1400, curve: 1.3, essential: true });
     }
 
     let orbitOn = false, last = 0;
@@ -167,7 +168,7 @@
     for (const ev of ['dragstart', 'wheel', 'touchstart', 'pitchstart']) map.on(ev, (e) => { if (e.originalEvent) interactListeners.forEach((cb) => cb()); });
 
     return {
-      ...M, OVERVIEW, setPadding, flyToFacility, overview, orbit,
+      ...M, OVERVIEW: OV, setPadding, flyToFacility, overview, orbit,
       onUserInteract: (cb) => interactListeners.push(cb),
       get padding() { return padding; },
     };

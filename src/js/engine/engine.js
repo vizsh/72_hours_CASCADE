@@ -36,11 +36,12 @@
     power:    [0.50, 0.22],
     hospital: [0.16, 0.08],
     ems:      [0.50, 0.28],
+    telecom:  [0.32, 0.18], // battery hold-up: slow to fail, slow to recover
   };
   // Observation noise (risk units) by kind. Administrative feeds (bed census, CAD,
   // SCADA) are precise; camera-derived traffic and rain gauges are noisier.
-  const SIGMA = { weather: 0.06, drainage: 0.04, pump: 0.05, traffic: 0.07, power: 0.035, hospital: 0.02, ems: 0.035 };
-  const NOISE = { weather: 0.01, drainage: 0.012, pump: 0.02, traffic: 0.045, power: 0.02, hospital: 0.012, ems: 0.035 };
+  const SIGMA = { weather: 0.06, drainage: 0.04, pump: 0.05, traffic: 0.07, power: 0.035, hospital: 0.02, ems: 0.035, telecom: 0.04 };
+  const NOISE = { weather: 0.01, drainage: 0.012, pump: 0.02, traffic: 0.045, power: 0.02, hospital: 0.012, ems: 0.035, telecom: 0.015 };
 
   // Injected sensor faults and misleading inputs (applied to the observation stream only).
   const FAULTS = [
@@ -57,18 +58,23 @@
   const gThr = (r, thr) => (r > thr ? Math.pow((r - thr) / (1 - thr), 1.15) : 0);
 
   function kindOf(f) {
+    if (f.type === 'telecom') return 'telecom';
     if (f.subtype === 'EMS station') return 'ems';
     if (f.subtype === 'Pumping station') return 'pump';
     return f.type;
   }
 
-  function weekday0(t0) {
-    const wd = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' }).format(new Date(t0));
+  function weekday0(t0, tz) {
+    const wd = new Intl.DateTimeFormat('en-US', { timeZone: tz || 'America/New_York', weekday: 'short' }).format(new Date(t0));
     return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(wd);
   }
 
   function create(geo, opts = {}) {
     const scen = root.TWIN.scenarios[opts.scenario || 'tropical'];
+    const t0 = scen.t0 || geo.t0;
+    const FAULTS_ = (opts.faults || geo.faults || FAULTS).map((f) => ({ ...f }));
+    const FALSE_ = opts.falseReports || geo.falseReports || FALSE_REPORTS;
+    const SCRIPT = opts.script || {}; // red-team injections from the console
     const M = opts.members || 200;
     const seed = opts.seed || 7;
     const F = geo.facilities;
@@ -96,7 +102,7 @@
     });
 
     // Calendar: weekday-aware traffic.
-    const wd0 = weekday0(geo.t0);
+    const wd0 = weekday0(t0, geo.tz);
     function trafficDiurnal(t) {
       const day = Math.floor(t / 24), hr = t - day * 24, wd = (wd0 + day) % 7;
       let v;
@@ -128,24 +134,29 @@
       const rain = scen.rain(P.sp, st.s, st.c, t);
       const heat = scen.heat(P.sp, t);
       const wind = scen.wind(P.sp, st.s, st.c, t);
+      let v = base;
       switch (kind) {
         case 'weather':
-          return Math.pow(clamp(Math.max(rain / 28, wind * 0.9, heat * 0.85), 0, 1), 0.9);
+          v = Math.pow(clamp(Math.max(rain / 28, wind * 0.9, heat * 0.85), 0, 1), 0.9); break;
         case 'drainage':
-        case 'pump': {
-          const v = base + (1 - base) * sigmoid((api - p.cap * P.capMul[i]) / p.scale);
-          return kind === 'pump' ? v + 0.25 * heat : v;
-        }
+        case 'pump':
+          v = base + (1 - base) * sigmoid((api - p.cap * P.capMul[i]) / p.scale);
+          if (kind === 'pump') v += 0.25 * heat;
+          break;
         case 'traffic':
-          return base * trafficDiurnal(t) * 1.25 + 0.14 * Math.min(1, rain / 14) + 0.05 * heat;
+          v = base * trafficDiurnal(t) * 1.25 + 0.14 * Math.min(1, rain / 14) + 0.05 * heat; break;
         case 'power':
-          return base * (0.85 + 0.25 * bump(hourOf(t), 18.5, 3)) + 0.38 * heat + 0.5 * wind * P.expo[i];
+          v = base * (0.85 + 0.25 * bump(hourOf(t), 18.5, 3)) + 0.38 * heat + 0.5 * wind * P.expo[i]; break;
         case 'hospital':
-          return base + 0.03 * bump(hourOf(t), 14, 4) + 0.2 * heat;
+          v = base + 0.03 * bump(hourOf(t), 14, 4) + 0.2 * heat; break;
         case 'ems':
-          return base * (0.85 + 0.3 * bump(hourOf(t), 17, 4)) + 0.12 * Math.min(1, rain / 15) + 0.12 * heat;
+          v = base * (0.85 + 0.3 * bump(hourOf(t), 17, 4)) + 0.12 * Math.min(1, rain / 15) + 0.12 * heat; break;
+        case 'telecom':
+          v = base + 0.08 * heat + 0.35 * wind * P.expo[i]; break;
       }
-      return base;
+      // Non-weather hazards (grid faults, plumes, crowds) add stress through the scenario.
+      if (scen.extra) v += scen.extra(P.sp, f, kind, st, t, i) || 0;
+      return v;
     }
     function rainAt(P, i, t) { return scen.rain(P.sp, sites[i].s, sites[i].c, t); }
 
@@ -237,7 +248,7 @@
       for (let k = 0; k < K; k++) for (let i = 0; i < N; i++) {
         obs[k * N + i] = clamp(truth[k * N + i] + gauss(rand) * SIGMA[kinds[i]] * 0.8, 0, 1);
       }
-      for (const fl of FAULTS) {
+      for (const fl of FAULTS_.concat(SCRIPT.faults || [])) {
         const i = idx[fl.id];
         if (i == null) continue;
         const k0 = Math.round(fl.from / DT), k1 = Math.min(K - 1, Math.round(fl.to / DT));
@@ -245,7 +256,15 @@
           if (fl.kind === 'stuck') obs[k * N + i] = obs[k0 * N + i];
           if (fl.kind === 'dropout') obs[k * N + i] = NaN;
           if (fl.kind === 'bias') obs[k * N + i] = clamp(obs[k * N + i] + fl.value, 0, 1);
+          if (fl.kind === 'spike') obs[k * N + i] = clamp(fl.value, 0, 1);
         }
+      }
+      // Feed blackout: a share of all channels go dark for a window.
+      if (SCRIPT.blackout) {
+        const { from, to, share } = SCRIPT.blackout;
+        const r2 = mulberry32(4242);
+        const dark = F.map(() => r2() < share);
+        for (let k = Math.round(from / DT); k <= Math.min(K - 1, Math.round(to / DT)); k++) for (let i = 0; i < N; i++) if (dark[i]) obs[k * N + i] = NaN;
       }
     }
 
@@ -563,10 +582,10 @@
       return { drivers: out, risk: now[k * N + i], trust: trust[k * N + i] };
     }
     function baseLabel(kind) {
-      return { weather: 'Background', drainage: 'Baseflow', pump: 'Baseline duty', traffic: 'Baseline demand (time of day)', power: 'Baseline load (time of day)', hospital: 'Baseline census', ems: 'Baseline call volume' }[kind];
+      return { weather: 'Background', drainage: 'Baseflow', pump: 'Baseline duty', traffic: 'Baseline demand (time of day)', power: 'Baseline load (time of day)', hospital: 'Baseline census', ems: 'Baseline call volume', telecom: 'Baseline network load' }[kind];
     }
     function hazardLabel(kind) {
-      return { weather: 'Observed hazard', drainage: 'Rainfall on catchment', pump: 'Rainfall inflow', traffic: 'Rain slowdown', power: 'Heat and wind stress', hospital: 'Heat illness surge', ems: 'Storm call volume' }[kind];
+      return { weather: 'Observed hazard', drainage: 'Rainfall on catchment', pump: 'Rainfall inflow', traffic: 'Rain slowdown', power: 'Heat and wind stress', hospital: 'Heat illness surge', ems: 'Storm call volume', telecom: 'Wind damage and heat at sites' }[kind];
     }
 
     // Inbound sources grouped by compass quadrant from the facility.
@@ -607,7 +626,7 @@
     }
 
     // Type-level dependency discovery from raw sensor streams only (no model).
-    const GROUPS = ['weather', 'drainage', 'traffic', 'power', 'ems', 'hospital'];
+    const GROUPS = ['weather', 'drainage', 'traffic', 'power', 'telecom', 'ems', 'hospital'].filter((g) => g === 'drainage' || kinds.includes(g));
     function groupSeries(kMax) {
       const out = {};
       for (const gname of GROUPS) {
@@ -731,8 +750,10 @@
           break;
         }
       }
-      for (const fr of FALSE_REPORTS) {
+      const planted = FALSE_.concat(SCRIPT.reports || []);
+      for (const fr of planted) {
         const i = idx[fr.near], kr = kOf(fr.t);
+        if (i == null) continue;
         alerts.push({ k: kr, t: fr.t, i, sev: 'report', kind: 'report', title: 'Citizen report', text: fr.text, conf: verify(kr, i), tr: trust[kr * N + i], planted: true });
       }
       alerts.sort((a, b) => a.k - b.k);
@@ -744,13 +765,13 @@
       return clamp(sigmoid((r - 0.45) / 0.09) * 0.95 + 0.02, 0.02, 0.98);
     }
     function critText(i) {
-      return { drainage: 'Channel over capacity, roadway overtopping likely', pump: 'Station at capacity, inflow exceeding pump rate', traffic: 'Gridlock, lanes closed or impassable', power: 'Substation at risk of forced outage', hospital: 'Capacity critical, diversion likely', ems: 'Response times beyond target, units exhausted' }[kinds[i]];
+      return { drainage: 'Channel over capacity, roadway overtopping likely', pump: 'Station at capacity, inflow exceeding pump rate', traffic: 'Gridlock, lanes closed or impassable', power: 'Substation at risk of forced outage', hospital: 'Capacity critical, diversion likely', ems: 'Response times beyond target, units exhausted', telecom: 'Sites off air, batteries exhausted' }[kinds[i]];
     }
     function highText(i) {
-      return { drainage: 'Stage rising fast, approaching bankfull', pump: 'Pump duty high, wet well rising', traffic: 'Heavy congestion, speeds below 15 mph', power: 'Feeder load high, flood exposure rising', hospital: 'Census rising, ED boarding', ems: 'Response times rising' }[kinds[i]];
+      return { drainage: 'Stage rising fast, approaching bankfull', pump: 'Pump duty high, wet well rising', traffic: 'Heavy congestion, speeds below 15 mph', power: 'Feeder load high, flood exposure rising', hospital: 'Census rising, ED boarding', ems: 'Response times rising', telecom: 'Sites on battery, call completion falling' }[kinds[i]];
     }
     function sensorText(i, k) {
-      const fl = FAULTS.find((x) => x.id === F[i].id && k * DT >= x.from - 1);
+      const fl = FAULTS_.concat(SCRIPT.faults || []).find((x) => x.id === F[i].id && k * DT >= x.from - 1);
       const why = fl ? fl.note : 'Readings disagree with neighbouring sensors';
       return `${why}; influence reduced to ${Math.round(trust[k * N + i] * 100)}%`;
     }
@@ -853,8 +874,8 @@
     }
 
     return {
-      geo, scen, F, E, N, M, K, DT, HOURS, idx, kinds, inEdges, outEdges,
-      FAULTS, members, traj, truth, obs, now, nowSd, trust, prior, ESS,
+      geo, scen, t0, F, E, N, M, K, DT, HOURS, idx, kinds, inEdges, outEdges,
+      FAULTS: FAULTS_, members, traj, truth, obs, now, nowSd, trust, prior, ESS,
       kOf, stateAt, forecast, project, explain, diurnal: trafficDiurnal, thr, edgesAt, edgePosterior, inbound, cascade, discover, alerts,
       validation, cityAt, radarParams, rainField, simulate, drawParams, R, wAt, g,
       truthParams: truthP,

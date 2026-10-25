@@ -63,10 +63,21 @@
       if (ring) floods.push(poly(ring, { df: top[0], w: Math.min(1, top[1] * 1.2) * Math.exp(-d / 900) }));
     }
     const districts = fc(geo.districts.map((d) => point(d.lngLat, { name: d.name })));
+    // Population massing: modeled residents per cell, tied to the nearest exposed facility
+    // so the blocks take on that facility's risk colour.
+    const exposedIdx = F.map((f, i) => (f.type !== 'weather' ? i : -1)).filter((i) => i >= 0);
+    const popCells = (geo.population && geo.population.cells) || [];
+    const half = ((geo.population && geo.population.cell) || 450) / 2 * 0.92;
+    const dLat = half / 110540, dLon = half / (111320 * Math.cos((lat * Math.PI) / 180));
+    const popLink = popCells.map(([lng, la]) => nearest(exposedIdx, [lng, la], 1500));
+    const pop = fc(popCells.map(([lng, la, n], q) => poly(
+      [[lng - dLon, la - dLat], [lng + dLon, la - dLat], [lng + dLon, la + dLat], [lng - dLon, la + dLat], [lng - dLon, la - dLat]],
+      { n, f: popLink[q].i, w: popLink[q].i === PAD ? 0 : Math.exp(-popLink[q].d / 900) })));
+    const popMax = popCells.reduce((m, c) => Math.max(m, c[2]), 1);
 
     const add = (id, src) => map.addSource(id, { type: 'geojson', data: src, tolerance: 0.2 });
     add('drn', drn); add('basin', basins); add('cor', cor); add('sub', subs); add('cov', cov); add('hsp', hsp);
-    add('flood', fc(floods)); add('flows', fc([])); add('arcs', fc([])); add('districts', districts); add('sel', fc([])); add('hl', fc([]));
+    add('flood', fc(floods)); add('flows', fc([])); add('arcs', fc([])); add('districts', districts); add('sel', fc([])); add('hl', fc([])); add('pop', pop);
 
     // ── Images ──
     for (const [k, hex] of Object.entries(FLOW_HEX)) map.addImage('chev-' + k, chevron(hex), { pixelRatio: 2 });
@@ -77,6 +88,11 @@
     const L = (spec, before = BEFORE) => map.addLayer(spec, before);
     const meters = (m) => G.metersExpr(lat, m);
 
+    L({ id: 'pop-3d', type: 'fill-extrusion', source: 'pop', layout: { visibility: 'none' },
+      paint: {
+        'fill-extrusion-height': ['*', 420, ['^', ['/', ['get', 'n'], popMax], 0.75]],
+        'fill-extrusion-base': 0, 'fill-extrusion-opacity': 0.62, 'fill-extrusion-color': '#3b3552',
+      } });
     L({ id: 'cov-fill', type: 'fill', source: 'cov', paint: { 'fill-color': '#b39af0', 'fill-opacity': 0.06 } });
     L({ id: 'cov-line', type: 'line', source: 'cov', paint: { 'line-color': '#7d6bb0', 'line-width': 0.8, 'line-opacity': 0.35, 'line-dasharray': [3, 2] } });
     L({ id: 'outage', type: 'fill', source: 'cov', paint: { 'fill-pattern': 'hatch', 'fill-opacity': 0 } });
@@ -142,6 +158,7 @@
       arcs: ['arcs-confirmed', 'arcs-candidate', 'arcs-pruned'],
       labels: ['road-label', 'district-label'],
       buildings: ['building-3d'],
+      population: ['pop-3d'],
     };
     function setGroup(key, on) {
       for (const id of GROUPS[key] || []) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
@@ -188,6 +205,10 @@
       map.setPaintProperty('flood-fill', 'fill-opacity', ['*', 0.5, ['get', 'w'], ramp01(at('df'), 0.45, 0.85)]);
       map.setPaintProperty('flood-edge', 'line-opacity', ['*', 0.6, ['get', 'w'], ramp01(at('df'), 0.7, 0.9)]);
 
+      // Population massing takes the risk of the facility it depends on
+      const expo = ['*', ['get', 'w'], at('f')];
+      map.setPaintProperty('pop-3d', 'fill-extrusion-color', ['interpolate', ['linear'], expo, 0.2, '#3b3552', 0.36, '#6b5a2a', 0.55, '#8a4f1c', 0.75, '#9a2a2e']);
+
       // Flows and arcs
       map.getSource('flows').setData(fc(ctx.flows.map((f) => line(f.path, { kind: f.kind, flow: f.flow }))));
       if (ctx.arcs) map.getSource('arcs').setData(fc(ctx.arcs.map((a) => line(a.path, { status: a.status, mean: a.mean, active: a.active ? 1 : 0 }))));
@@ -223,8 +244,21 @@
       if (s !== dashStep && map.getLayer('flows-dash')) { dashStep = s; map.setPaintProperty('flows-dash', 'line-dasharray', DASH[s]); }
     }
 
+    // People living where the linked facility is at HIGH RISK or CRITICAL.
+    function peopleAtRisk(R) {
+      let high = 0, crit = 0, total = 0;
+      popCells.forEach((c, q) => {
+        total += c[2];
+        const l = popLink[q];
+        if (l.i === PAD) return;
+        const e = R[l.i] * Math.exp(-l.d / 900) + (1 - Math.exp(-l.d / 900)) * 0.2;
+        if (e >= 0.75) crit += c[2]; else if (e >= 0.55) high += c[2];
+      });
+      return { high, crit, total };
+    }
+
     update(R0, { diurnal: 1, flows: [], arcs: [] });
-    return { update, setGroup, select, highlight, tick, FLOW_HEX };
+    return { update, setGroup, select, highlight, tick, peopleAtRisk, FLOW_HEX };
   }
 
   function chevron(hex) {

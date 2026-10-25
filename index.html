@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Raleigh Digital Twin</title>
-<meta name="description" content="Urban digital twin of Raleigh, NC: real OpenStreetMap city model with a cascade-intelligence layer that predicts how a flood propagates through drainage, roads, power and hospitals up to 72 hours ahead.">
+<title>CASCADE 72 · Urban Digital Twin</title>
+<meta name="description" content="Urban digital twin of Nagpur (and Raleigh as an unseen-city test): real OpenStreetMap city model with a cascade-intelligence layer that predicts how floods, grid faults, toxic releases and crowds propagate through drainage, roads, power, telecom and hospitals up to 72 hours ahead.">
 <!--BUILD:HEAD-->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,8 +28,8 @@
         <path d="M8 17V11.5l3-1.7V17M12.6 17V8.6l3-1.7V17M17.2 17v-5.2l2.2-1.2" fill="none" stroke="#e4e8ee" stroke-width="1.4" stroke-linejoin="round"/>
       </svg>
       <div class="brand-text">
-        <div class="brand-title">Raleigh Digital Twin</div>
-        <div class="brand-sub">Cascade Intelligence · Wake County, NC</div>
+        <div class="brand-title">Digital Twin</div>
+        <div class="brand-sub">Cascade Intelligence</div>
       </div>
     </div>
 
@@ -40,18 +40,20 @@
       </div>
       <div class="clock">
         <span class="clock-t" id="clockT">T+34.5h</span>
-        <span class="clock-d" id="clockD">SUN 25 OCT · 10:30 EDT</span>
+        <span class="clock-d" id="clockD"></span>
         <span class="clock-tag" id="clockTag">LIVE</span>
       </div>
     </div>
 
     <div class="top-right">
+      <label class="select city-sel"><select id="citySel" class="glass" aria-label="City"></select><span id="citySelIco"></span></label>
       <div class="sys" id="sys"><span class="sys-led"></span><span class="sys-text">Starting…</span></div>
+      <div class="city-chip people-chip" id="peopleChip"></div>
       <div class="city-chip" id="cityChip"></div>
     </div>
   </header>
 
-  <div id="map" aria-label="3D map of Raleigh"></div>
+  <div id="map" aria-label="3D city map"></div>
 
   <div class="map-ui">
     <nav class="crumbs glass" id="crumbs" aria-label="Location"></nav>
@@ -126,7 +128,7 @@
   </footer>
 
   <div class="loading" id="loading">
-    <div class="loading-title">Raleigh Digital Twin</div>
+    <div class="loading-title">CASCADE 72 · Digital Twin</div>
     <div class="loading-bar"><i></i></div>
     <div class="loading-step" id="loadingStep">Loading city model…</div>
   </div>
@@ -136,7 +138,15 @@
 <script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.js"></script>
 <script>window.maplibregl || document.write('<script src="src/vendor/maplibre-gl-4.7.1.js"><\/script>');</script>
-<script src="src/js/data/geodata.js"></script>
+<script>
+  // Load only the selected city's geodata (?city=nagpur | raleigh).
+  (function () {
+    var c = (new URLSearchParams(location.search).get('city') || 'nagpur').toLowerCase();
+    if (!/^[a-z-]+$/.test(c)) c = 'nagpur';
+    window.TWIN_CITY = c;
+    document.write('<script src="src/js/data/' + (c === 'raleigh' ? 'geodata.js' : 'geodata_' + c + '.js') + '"><\/script>');
+  })();
+</script>
 <script src="src/js/core.js"></script>
 <script src="src/js/engine/scenarios.js"></script>
 <script src="src/js/engine/engine.js"></script>

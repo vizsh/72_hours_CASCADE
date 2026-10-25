@@ -5,17 +5,27 @@
   const { stateOf, RISK_HEX, fmtT, clamp } = C;
   const I = T.icons.UI;
   const LIVE_NOW = 34.5;
+  // City comes from ?city= (index.html loads only that city's geodata).
+  const GEOS = root.TWIN_GEOS || {};
+  const CITY = root.TWIN_CITY || 'nagpur';
+  const GEO = GEOS[CITY] || GEOS.nagpur || Object.values(GEOS)[0] || root.TWIN_GEO;
+  const CITIES = [{ id: 'nagpur', label: 'Nagpur, MH' }, { id: 'raleigh', label: 'Raleigh, NC' }];
+  // City-specific scenarios first, then the generic ones that run on any city.
+  const scenFor = (geo) => Object.values(T.scenarios).filter((s) => !s.cities || s.cities.includes(geo.id)).sort((x, y) => Number(!!y.cities) - Number(!!x.cities));
+  const liveNowOf = (id) => (T.scenarios[id] && T.scenarios[id].liveNow) || LIVE_NOW;
+  const urlScen = new URLSearchParams(location.search).get('scenario');
+  const SCEN0 = scenFor(GEO).some((s) => s.id === urlScen) ? urlScen : scenFor(GEO)[0].id;
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const nextFrame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
 
   const app = {
-    geo: root.TWIN_GEO,
+    geo: GEO,
     engine: null,
     state: {
-      scenario: 'tropical', mode: 'live', nowT: LIVE_NOW, t: LIVE_NOW, playing: false, speed: 2, streaming: false,
+      scenario: SCEN0, mode: 'live', nowT: liveNowOf(SCEN0), t: liveNowOf(SCEN0), playing: false, speed: 2, streaming: false,
       selected: null, drawer: null, orbit: false,
-      layers: { drainage: true, traffic: true, power: true, hospital: true, weather: true, flows: true, arcs: false, buildings: true, labels: true },
+      layers: { drainage: true, traffic: true, power: true, hospital: true, telecom: true, weather: true, flows: true, arcs: false, buildings: true, population: false, labels: true },
     },
     view: null,
   };
@@ -37,11 +47,18 @@
   // ── Init ───────────────────────────────────────────────────────────────
   async function init() {
     const step = (s) => { $('loadingStep').textContent = s; return nextFrame(); };
+    const g = app.geo;
+    C.setTZ(g.tz, g.tzLabel);
+    document.title = `${g.city} Digital Twin · CASCADE 72`;
+    document.querySelector('.brand-title').textContent = `${g.city} Digital Twin`;
+    document.querySelector('.brand-sub').textContent = `Cascade Intelligence · ${g.region}`;
+    document.querySelector('.loading-title').textContent = `${g.city} Digital Twin`;
+    $('map').setAttribute('aria-label', `3D map of ${g.city}`);
     await step('Assimilating 72 h of sensor streams · 200-member ensemble…');
     app.engine = T.engine.create(app.geo, { scenario: app.state.scenario });
     app.view = computeView();
 
-    await step('Loading Raleigh city model · OpenStreetMap buildings and streets…');
+    await step(`Loading ${g.city} city model · OpenStreetMap buildings, streets and rivers…`);
     const tm = await T.twinmap.create($('map'), app.geo, root.TWIN_CONFIG || {});
     app.tm = tm;
     app.map = tm.map;
@@ -107,9 +124,9 @@
 
   function renderLight(v) {
     app.timeline.update(v);
-    const ck = C.clockAt(app.geo.t0, v.t);
+    const ck = C.clockAt(app.engine.t0, v.t);
     $('clockT').textContent = fmtT(v.t);
-    $('clockD').textContent = `${ck.day} · ${ck.time} EDT`;
+    $('clockD').textContent = `${ck.day} · ${ck.time} ${C.tzLabel()}`;
     const tag = $('clockTag');
     if (v.mode === 'historical') { tag.textContent = 'REPLAY'; tag.className = 'clock-tag'; }
     else if (v.forecastView) { tag.textContent = `FORECAST +${(v.t - v.tNow).toFixed(1)}h`; tag.className = 'clock-tag forecast'; }
@@ -160,6 +177,10 @@
     }
     const st = stateOf(risk);
     $('cityChip').innerHTML = `<span class="caps pill-label">City</span><span class="pill r-${st.key}"><span class="dot"></span>${st.label}</span>`;
+    const ppl = app.layers.peopleAtRisk(v.R);
+    const fmtK = (n) => (n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n));
+    $('peopleChip').innerHTML = `<span class="caps pill-label">People at risk</span><b class="num ${ppl.crit ? 'crit' : ppl.high ? 'high' : ''}">${fmtK(ppl.high + ppl.crit)}</b>`;
+    $('peopleChip').title = `${fmtK(ppl.crit)} where the nearest exposed facility is CRITICAL, ${fmtK(ppl.high)} where it is HIGH RISK, of ${fmtK(ppl.total)} modeled residents.`;
     const ess = e.cityAt(v.kInfo).ess;
     const faults = Array.from(v.trust).filter((t, i) => t < 0.5 && e.kinds[i]).length;
     const sys = $('sys');
@@ -170,7 +191,7 @@
 
   // Cascade strip: one stage per system, lit when it reaches HIGH, with the time it did
   // (observed) or is expected to (forecast).
-  const STAGES = [['weather', 'Rainfall'], ['drainage', 'Drainage'], ['traffic', 'Traffic'], ['power', 'Power'], ['ems', 'EMS'], ['hospital', 'Hospital']];
+  const STAGES_ALL = [['weather', 'Hazard'], ['drainage', 'Drainage'], ['traffic', 'Traffic'], ['power', 'Power'], ['telecom', 'Telecom'], ['ems', 'EMS'], ['hospital', 'Hospital']];
   let seqCache = { k: -1, s: '', seq: [] };
   function renderStrip(v) {
     const e = app.engine;
@@ -181,6 +202,7 @@
       if (c.level === 'HIGH RISK' && !(gk in first)) first[gk] = c;
     }
     let nCritGroups = 0;
+    const STAGES = STAGES_ALL.filter(([g]) => g === 'weather' || e.kinds.includes(g) || (g === 'drainage' && e.kinds.includes('pump')));
     const html = STAGES.map(([g, label], n) => {
       let mx = 0;
       for (let i = 0; i < e.N; i++) { const gk = e.kinds[i] === 'pump' ? 'drainage' : e.kinds[i]; if (gk === g) mx = Math.max(mx, v.R[i]); }
@@ -210,8 +232,8 @@
     const i = app.state.selected, F = app.geo.facilities;
     const home = `<button class="home" id="homeBtn">${I.home} City overview</button>`;
     $('crumbs').innerHTML = i == null
-      ? `<span>Raleigh, NC</span><span class="sep">›</span><span class="cur">All districts</span>${app.state.orbit ? '' : ''}`
-      : `<button class="crumb" id="crumbCity">Raleigh, NC</button><span class="sep">›</span><span>${esc(F[i].district)}</span><span class="sep">›</span><span class="cur">${esc(F[i].name)}</span>${home}`;
+      ? `<span>${esc(app.geo.city)}</span><span class="sep">›</span><span class="cur">All districts</span>`
+      : `<button class="crumb" id="crumbCity">${esc(app.geo.city)}</button><span class="sep">›</span><span>${esc(F[i].district)}</span><span class="sep">›</span><span class="cur">${esc(F[i].name)}</span>${home}`;
     const hb = $('homeBtn'); if (hb) hb.addEventListener('click', () => { app.select(null); app.tm.overview(); });
     const cc = $('crumbCity'); if (cc) cc.addEventListener('click', () => { app.select(null); app.tm.overview(); });
   }
@@ -224,7 +246,7 @@
       const g = e.kinds[i] === 'pump' ? 'drainage' : e.kinds[i];
       if (g === 'weather' || announced.has(g) || v.R[i] < 0.75) continue;
       announced.add(g);
-      const names = { drainage: 'Drainage over capacity', traffic: 'Road network gridlock', power: 'Substation outage risk', ems: 'EMS response failing', hospital: 'Hospital capacity critical' };
+      const names = { drainage: 'Drainage over capacity', traffic: 'Road network gridlock', power: 'Substation outage risk', telecom: 'Mobile network failing', ems: 'EMS response failing', hospital: 'Hospital capacity critical' };
       toast(`<b>Critical</b><span>${names[g]} · ${esc(e.F[i].name)} · ${fmtT(v.t)}</span>`);
       if (app.state.streaming && performance.now() - lastFly > 4500 && app.state.selected == null) {
         lastFly = performance.now();
@@ -291,7 +313,7 @@
   function applyLayer(key, on) {
     if (key === 'weather') { app.radar.setVisible(on); app.markers.setTypeVisible('weather', on); return; }
     app.layers.setGroup(key, on);
-    if (['drainage', 'traffic', 'power', 'hospital'].includes(key)) app.markers.setTypeVisible(key, on);
+    if (['drainage', 'traffic', 'power', 'hospital', 'telecom'].includes(key)) app.markers.setTypeVisible(key, on);
   }
   app.scrub = function (t) {
     const s = app.state;
@@ -325,7 +347,7 @@
   app.reset = function () {
     const s = app.state;
     s.playing = false; s.streaming = false;
-    s.mode = 'live'; s.nowT = LIVE_NOW; s.t = LIVE_NOW;
+    s.mode = 'live'; s.nowT = liveNowOf(s.scenario); s.t = s.nowT;
     $('modeLive').setAttribute('aria-pressed', 'true'); $('modeHist').setAttribute('aria-pressed', 'false');
     app.select(null);
     app.setDrawer(null);
@@ -339,7 +361,7 @@
     s.mode = mode; s.playing = false; s.streaming = false;
     $('modeLive').setAttribute('aria-pressed', String(mode === 'live'));
     $('modeHist').setAttribute('aria-pressed', String(mode === 'historical'));
-    if (mode === 'live') { s.nowT = LIVE_NOW; s.t = LIVE_NOW; }
+    if (mode === 'live') { s.nowT = liveNowOf(s.scenario); s.t = s.nowT; }
     else { s.nowT = app.engine.HOURS; if (!quiet) app.setDrawer('valid'); }
     app.timeline.invalidate();
     renderAll(true);
@@ -360,9 +382,10 @@
     $('app').appendChild(ld);
     await nextFrame(); await nextFrame();
     app.engine = T.engine.create(app.geo, { scenario: id });
+    app.timeline.invalidate();
     precomputePaths();
     app.graph.reset(); app.valid.reset(); app.timeline.invalidate();
-    s.nowT = s.mode === 'live' ? LIVE_NOW : app.engine.HOURS;
+    s.nowT = s.mode === 'live' ? liveNowOf(id) : app.engine.HOURS;
     s.t = s.nowT;
     renderAll(true);
     if (s.selected != null) app.inspector.open(s.selected);
@@ -403,7 +426,11 @@
     $('btnPlan').addEventListener('click', () => app.setDrawer('plan'));
     $('btnValid').addEventListener('click', () => app.setDrawer('valid'));
     const sel = $('scenario');
-    sel.innerHTML = Object.values(T.scenarios).map((s) => `<option value="${s.id}">${esc(s.label)}</option>`).join('');
+    sel.innerHTML = scenFor(app.geo).map((s) => `<option value="${s.id}">${esc(s.label)}</option>`).join('');
+    const csel = $('citySel');
+    csel.innerHTML = CITIES.map((c) => `<option value="${c.id}" ${c.id === app.geo.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('');
+    csel.addEventListener('change', () => { location.search = '?city=' + encodeURIComponent(csel.value); });
+    $('citySelIco').innerHTML = I.chevron;
     sel.value = app.state.scenario;
     sel.addEventListener('change', () => setScenario(sel.value));
     $('scenIco').innerHTML = I.chevron;

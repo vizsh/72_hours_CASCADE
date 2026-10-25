@@ -7,6 +7,9 @@ import math, os, sys, gzip, urllib.request, concurrent.futures as cf
 OUT = sys.argv[1]
 TPL = "https://tiles.openfreemap.org/planet/20261018_080001_pt/{z}/{x}/{y}.pbf"
 W, S, E, N = -78.745, 35.728, -78.548, 35.915     # Raleigh twin extent
+if "--extent" in sys.argv:                         # any other city: --extent W S E N
+    i = sys.argv.index("--extent")
+    W, S, E, N = (float(v) for v in sys.argv[i + 1 : i + 5])
 ZOOMS = range(10, 15)
 
 def tile(lat, lon, z):

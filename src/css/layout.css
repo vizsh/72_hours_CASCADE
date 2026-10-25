@@ -101,3 +101,11 @@
   .clock-t { font-size: 15px; }
   .brand-title { display: none; }
 }
+
+/* City switcher and people-at-risk chip */
+.city-sel select { height: 30px; padding: 0 28px 0 10px; font-size: var(--fs-sm); border-radius: 8px; }
+.people-chip b.num { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--text); }
+.people-chip b.num.high { color: var(--high); }
+.people-chip b.num.crit { color: var(--crit); }
+@media (max-width: 1280px) { .people-chip { display: none; } }
+@media (max-width: 960px) { .city-sel { display: none; } }

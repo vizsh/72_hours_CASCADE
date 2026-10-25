@@ -84,8 +84,8 @@
       track.setAttribute('aria-valuenow', String(v.t));
       play.innerHTML = app.state.playing ? I.pause : I.play;
       play.setAttribute('aria-label', app.state.playing ? 'Pause' : 'Play');
-      const s = C.clockAt(app.geo.t0, 0), e2 = C.clockAt(app.geo.t0, H);
-      document.getElementById('tlRange').textContent = `${s.day} 00:00 → ${e2.day} 00:00 EDT`;
+      const s = C.clockAt(app.engine.t0, 0), e2 = C.clockAt(app.engine.t0, H);
+      document.getElementById('tlRange').textContent = `${s.day} ${s.time} → ${e2.day} ${e2.time} ${C.tzLabel()}`;
     }
     return { update, invalidate: () => (cache.key = '') };
   }

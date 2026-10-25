@@ -5,10 +5,11 @@
   const I = root.TWIN.icons;
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  const GROUPS = ['weather', 'drainage', 'traffic', 'power', 'ems', 'hospital'];
-  const GLABEL = { weather: 'Weather', drainage: 'Drainage', traffic: 'Traffic', power: 'Power', ems: 'EMS response', hospital: 'Hospitals' };
-  const GICON = { weather: I.FAC.weather, drainage: I.FAC.gauge, traffic: I.FAC.signal, power: I.FAC.power, ems: I.FAC.ems, hospital: I.FAC.hospital };
-  const POS = { weather: [56, 148], drainage: [190, 148], traffic: [336, 52], power: [336, 246], ems: [486, 52], hospital: [536, 196] };
+  const GROUPS_ALL = ['weather', 'drainage', 'traffic', 'power', 'telecom', 'ems', 'hospital'];
+  const GLABEL = { weather: 'Weather', drainage: 'Drainage', traffic: 'Traffic', power: 'Power', ems: 'EMS response', hospital: 'Hospitals', telecom: 'Telecom' };
+  const GICON = { weather: I.FAC.weather, drainage: I.FAC.gauge, traffic: I.FAC.signal, power: I.FAC.power, ems: I.FAC.ems, hospital: I.FAC.hospital, telecom: I.FAC.telecom };
+  const POS = { weather: [56, 148], drainage: [190, 148], traffic: [336, 52], power: [336, 246], telecom: [470, 262], ems: [486, 52], hospital: [536, 166] };
+  const groupsOf = (e) => GROUPS_ALL.filter((g) => g === 'drainage' || e.kinds.includes(g));
   const groupOf = (kind) => (kind === 'pump' ? 'drainage' : kind);
 
   function createGraph(app) {
@@ -82,6 +83,7 @@
       const act = activation();
       const order = Object.entries(act).filter(([, k]) => k <= kc).sort((a, b) => a[1] - b[1]).map(([key]) => key);
       const groupRisk = {};
+      const GROUPS = groupsOf(e);
       for (const g of GROUPS) {
         let mx = 0;
         for (let i = 0; i < e.N; i++) if (groupOf(e.kinds[i]) === g) mx = Math.max(mx, v.R[i]);
