@@ -3,199 +3,170 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<script>
-  // The twin registers no service worker. One left on this origin by another localhost
-  // project intercepts requests and serves stale scripts, so retire it and reload once.
-  (function () {
-    if (!('serviceWorker' in navigator)) return;
-    navigator.serviceWorker.getRegistrations().then(function (rs) {
-      if (!rs.length) return;
-      Promise.all(rs.map(function (r) { return r.unregister(); })).then(function () {
-        var again = false;
-        try { again = !sessionStorage.getItem('twin-sw-cleared'); sessionStorage.setItem('twin-sw-cleared', '1'); } catch (e) { /* storage blocked */ }
-        if (navigator.serviceWorker.controller && again) location.reload();
-      });
-    }).catch(function () {});
-  })();
-</script>
-<title>CASCADE 72 · Urban Digital Twin</title>
-<meta name="description" content="Urban digital twin of Nagpur (and Raleigh as an unseen-city test): real OpenStreetMap city model with a cascade-intelligence layer that predicts how floods, grid faults, toxic releases and crowds propagate through drainage, roads, power, telecom and hospitals up to 72 hours ahead.">
+<title>CASCADE 72 · The 72-hour warning for cities</title>
+<meta name="description" content="A digital twin of Nagpur that forecasts how a crisis cascades through drains, roads, power, telecom and hospitals up to 72 hours ahead, learns hidden dependencies, and tests which action breaks the chain.">
+<meta name="theme-color" content="#090b0e">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Crect width='26' height='26' rx='5' fill='%23090b0e'/%3E%3Cpath d='M13 2.5 22 7.7v10.6L13 23.5 4 18.3V7.7z' fill='none' stroke='%2379a7e3' stroke-width='1.6'/%3E%3Cpath d='M8.5 16.5v-5l2.7-1.5v6.5M12.8 16.5V8.8l2.7-1.5v9.2' fill='none' stroke='%23e4e8ee' stroke-width='1.6'/%3E%3C/svg%3E">
-<!--BUILD:HEAD-->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500&display=swap">
-<link rel="stylesheet" href="src/vendor/maplibre-gl-4.7.1.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500&display=swap">
 <link rel="stylesheet" href="src/css/tokens.css">
 <link rel="stylesheet" href="src/css/base.css">
-<link rel="stylesheet" href="src/css/layout.css">
-<link rel="stylesheet" href="src/css/panels.css">
-<link rel="stylesheet" href="src/css/map.css">
-<link rel="stylesheet" href="src/css/ops.css">
-<!--/BUILD:HEAD-->
+<link rel="stylesheet" href="src/css/site.css">
+<link rel="stylesheet" href="src/css/pages.css">
 </head>
-<body>
-<div class="app" id="app">
+<body class="page-home">
+<header id="site-header"></header>
 
-  <header class="topbar">
-    <div class="brand">
-      <button class="icon-btn drawer-btn" id="drawerBtn" aria-label="Show assets and alerts"></button>
-      <svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true">
-        <path d="M13 1.5 23 7.25v11.5L13 24.5 3 18.75V7.25z" fill="none" stroke="#79a7e3" stroke-width="1.4"/>
-        <path d="M8 17V11.5l3-1.7V17M12.6 17V8.6l3-1.7V17M17.2 17v-5.2l2.2-1.2" fill="none" stroke="#e4e8ee" stroke-width="1.4" stroke-linejoin="round"/>
-      </svg>
-      <div class="brand-text">
-        <div class="brand-title">Digital Twin</div>
-        <div class="brand-sub">Cascade Intelligence</div>
+<main>
+  <section class="hero" aria-label="Nagpur, 23 September 2023, replayed">
+    <canvas id="heroCity" class="hero-canvas" role="img" aria-label="Nagpur as columns of light: population warms with the risk of the facility it depends on, and stress travels between facilities as pulses."></canvas>
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <h1 class="display">A flood warning tells you where the rain falls. This tells you what fails next.</h1>
+        <p class="lede">CASCADE 72 is a digital twin of Nagpur. It forecasts how one disruption travels through drains, roads, power, telecom and hospitals over the next 72 hours, learns the dependencies nobody wrote down, and tests which action breaks the chain before the window closes.</p>
+        <div class="actions">
+          <a class="btn primary" href="twin.html?scenario=monsoon2023">Replay Nagpur, 23 Sep 2023 <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
+          <a class="btn" href="live.html">Today's live forecast</a>
+        </div>
+        <p class="hero-hint" id="heroHint">Click any facility in the city to send a pulse through everything that depends on it.</p>
+      </div>
+      <aside class="course" id="course" aria-live="polite">
+        <div class="course-head">
+          <div class="course-title">Predicted course</div>
+          <div class="course-sub" id="courseSub">Issued 22 Sep 2023, 06:00, from data available then</div>
+        </div>
+        <ol class="course-list" id="courseList">
+          <li class="skeleton" style="height:44px"></li><li class="skeleton" style="height:44px"></li><li class="skeleton" style="height:44px"></li>
+        </ol>
+        <div class="course-foot" id="courseFoot">Running the 200-member ensemble in your browser…</div>
+      </aside>
+    </div>
+    <div class="hero-ticker">
+      <div class="wrap ticker-row">
+        <button class="tick-play" id="heroPlay" type="button" aria-label="Pause replay" aria-pressed="true">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="4" y="3" width="3" height="10" rx="0.8" fill="currentColor"/><rect x="9" y="3" width="3" height="10" rx="0.8" fill="currentColor"/></svg>
+        </button>
+        <div class="tick-clock"><span class="mono" id="heroT">T+30.0h</span><span id="heroClock">—</span></div>
+        <div class="tick-track" id="heroTrack" aria-hidden="true"><i id="heroFill"></i><b id="heroMark"></b></div>
+        <div class="tick-stats mono" id="heroStats"></div>
       </div>
     </div>
+  </section>
 
-    <div class="top-center">
-      <div class="mode-toggle" role="group" aria-label="Data mode">
-        <button id="modeLive" aria-pressed="true"><span class="live-dot"></span>Live</button>
-        <button id="modeHist" aria-pressed="false"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg><span class="mode-label-long">Historical</span></button>
-      </div>
-      <div class="clock">
-        <span class="clock-t" id="clockT">T+34.5h</span>
-        <span class="clock-d" id="clockD"></span>
-        <span class="clock-tag" id="clockTag">LIVE</span>
-      </div>
-    </div>
-
-    <div class="top-right">
-      <label class="select city-sel"><select id="citySel" class="glass" aria-label="City"></select><span id="citySelIco"></span></label>
-      <div class="sys" id="sys"><span class="sys-led"></span><span class="sys-text">Starting…</span></div>
-      <button class="city-chip people-chip cr-chip" id="crChip" type="button" aria-label="Cascade-R"></button>
-      <div class="city-chip people-chip" id="peopleChip"></div>
-      <div class="city-chip" id="cityChip"></div>
-    </div>
-  </header>
-
-  <div id="map" aria-label="3D city map"></div>
-
-  <div class="map-ui">
-    <nav class="crumbs glass" id="crumbs" aria-label="Location"></nav>
-    <div class="tools" role="toolbar" aria-label="Analysis tools">
-      <button class="btn glass" id="btnGraph" aria-pressed="false"></button>
-      <button class="btn glass" id="btnPlan" aria-pressed="false"></button>
-      <button class="btn glass" id="btnValid" aria-pressed="false"></button>
-      <span class="tools-sep" aria-hidden="true"></span>
-      <button class="btn glass" id="btnCrises" aria-pressed="false"></button>
-      <button class="btn glass" id="btnRed" aria-pressed="false"></button>
-      <button class="btn glass" id="btnComms" aria-pressed="false"></button>
-      <label class="select"><select id="scenario" class="glass" aria-label="Scenario"></select><span id="scenIco"></span></label>
-    </div>
-    <div class="cascade-strip glass" id="strip" aria-label="Cascade stages"></div>
-    <div class="legend glass" id="legend"></div>
-    <div class="map-ctrl">
-      <div class="group glass">
-        <button id="zoomIn" aria-label="Zoom in"></button>
-        <button id="zoomOut" aria-label="Zoom out"></button>
-      </div>
-      <div class="group glass">
-        <button id="north" aria-label="Reset bearing to north"></button>
-        <button id="tilt" aria-label="Toggle 3D tilt"></button>
+  <section class="band" id="compare">
+    <div class="wrap compare">
+      <h2 class="h2">Same morning, same city. Two very different warnings.</h2>
+      <div class="compare-grid">
+        <figure class="quote plain">
+          <figcaption>A conventional district warning</figcaption>
+          <blockquote>"Heavy to very heavy rainfall is likely at isolated places in Nagpur district."</blockquote>
+          <p>True, and almost impossible to act on. It names the weather, not the consequence, and not the time.</p>
+        </figure>
+        <figure class="quote lit">
+          <figcaption>CASCADE 72, issued at 06:00 on 22 Sep 2023</figcaption>
+          <blockquote id="compareText">Reading the forecast the twin issued that morning…</blockquote>
+          <p id="compareNote">Every time and probability here comes from the engine running in your browser on data that had arrived by 06:00.</p>
+        </figure>
       </div>
     </div>
-    <div class="toast glass" id="toast" hidden></div>
+  </section>
 
-    <section class="drawer graph glass" id="drawerGraph" hidden aria-label="Dependency graph"></section>
-    <section class="drawer plan glass" id="drawerPlan" hidden aria-label="Interventions"></section>
-    <section class="drawer valid glass" id="drawerValid" hidden aria-label="Temporal validation"></section>
-    <section class="drawer crises glass" id="drawerCrises" hidden aria-label="Crisis registry"></section>
-    <section class="drawer red glass" id="drawerRed" hidden aria-label="Red-team console"></section>
-    <section class="drawer comms glass" id="drawerComms" hidden aria-label="Communications"></section>
-    <div class="mode-bar glass" id="modeBar" hidden></div>
-  </div>
-
-  <aside class="left glass" aria-label="Assets, layers and alerts">
-    <div class="left-head">
-      <div class="count-line">
-        <h2><span id="assetCount">44</span> Monitored assets</h2>
-        <span class="caps" id="assetCrit"></span>
+  <section class="band" id="how">
+    <div class="wrap">
+      <div class="sec-intro">
+        <h2 class="h2">One question, asked four ways, every half hour.</h2>
+        <p class="lede">What is likely to fail next, what will that failure affect, and what can we do now to stop the cascade? Each layer feeds the next, and every new reading re-runs all four.</p>
       </div>
-      <label class="search">
-        <span id="searchIco"></span>
-        <input id="search" type="search" placeholder="Search assets, streets, sensor IDs" autocomplete="off" aria-label="Search assets">
-      </label>
+      <ol class="layers">
+        <li><h3 class="h3">What physical event is coming?</h3><p>Rain, heat, plumes, crowds and grid faults, carried as 200 possible futures rather than one line.</p><p class="eg">Most members put a cloudburst over the city before dawn on 23 September; some miss it entirely.</p><span class="layer-name">Hazard</span></li>
+        <li><h3 class="h3">What does it touch?</h3><p>Real rivers, roads, substations, hospitals and 2.9 million modeled residents decide what sits in its path.</p><p class="eg">Low ground below Ambazari Lake, the ring-road underpass, dense old neighbourhoods along the Nag.</p><span class="layer-name">Exposure</span></li>
+        <li><h3 class="h3">What fails next, and when?</h3><p>Failures propagate through a dependency network the twin learns from the sensor streams. Each link has a mechanism, a lag and a confidence.</p><p class="eg">Lake overflow → flooded crossing → ambulance delay → hospital over capacity.</p><span class="layer-name">Cascade</span></li>
+        <li><h3 class="h3">What can we do before the window closes?</h3><p>Actions run on the same futures as doing nothing, so you see what breaks, what it costs elsewhere, and the latest time to start.</p><p class="eg">Mobile pumps, staged ambulances and an early underpass closure, compared on identical futures.</p><span class="layer-name">Intervention</span></li>
+      </ol>
     </div>
-    <div class="sec">
-      <div class="sec-head"><span class="sec-title">Layers</span><button class="link-btn" id="layersAll">Show all</button></div>
-      <div class="layers" id="layers"></div>
-    </div>
-    <div class="assets scroll" id="assets"></div>
-    <div class="alerts-sec">
-      <div class="sec-head"><span class="sec-title"><b id="alertCount">0</b>Alerts</span><span class="caps" id="alertWindow">last 6 h</span></div>
-      <div class="alerts scroll" id="alerts"></div>
-    </div>
-  </aside>
+  </section>
 
-  <aside class="right glass" id="inspector" aria-label="Facility inspector"></aside>
-
-  <footer class="bottom glass">
-    <div class="transport">
-      <button class="play" id="play" aria-label="Play"></button>
-      <button class="speed" id="speed" aria-label="Playback speed">2×</button>
-    </div>
-    <div class="tl" id="timeline">
-      <div class="tl-head"><span>72-hour predictive timeline</span><span class="num" id="tlRange"></span></div>
-      <div class="tl-track" id="tlTrack">
-        <canvas id="tlCanvas"></canvas>
-        <div class="tl-now" id="tlNow"><span>NOW</span></div>
-        <div class="tl-thumb" id="tlThumb"><span id="tlThumbT"></span></div>
+  <section class="band sunk" id="inside">
+    <div class="wrap">
+      <div class="sec-intro">
+        <h2 class="h2">Inside the operations room</h2>
+        <p class="lede">Six instruments that sit on top of the forecast. Each one below is live: it is computed now, in a background thread, from the same engine the operations room uses.</p>
       </div>
-      <div class="tl-axis" id="tlAxis"></div>
+      <div class="explorer">
+        <div class="explorer-tabs" role="tablist" aria-label="Capabilities">
+          <button role="tab" aria-selected="true" data-cap="crises"><b>Crisis registry</b><span>Concurrent crises with their own identity, stage and footprint</span></button>
+          <button role="tab" aria-selected="false" data-cap="cascader"><b>Cascade-R</b><span>Is the cascade feeding itself yet?</span></button>
+          <button role="tab" aria-selected="false" data-cap="graph"><b>Learned dependencies</b><span>Links nobody wrote down, confirmed or pruned from data</span></button>
+          <button role="tab" aria-selected="false" data-cap="ghost"><b>Ghost city</b><span>The same futures, with a plan applied</span></button>
+          <button role="tab" aria-selected="false" data-cap="red"><b>Red team</b><span>Attack the twin's own inputs and watch it cope</span></button>
+          <button role="tab" aria-selected="false" data-cap="comms"><b>Warnings that leave the room</b><span>CAP alerts and SMS in English, Hindi and Marathi</span></button>
+        </div>
+        <div class="explorer-stage panel" id="stage" role="tabpanel" aria-live="polite"></div>
+      </div>
     </div>
-    <div class="controls">
-      <button class="btn primary-btn" id="trigger"></button>
-      <button class="btn" id="reset"></button>
-      <button class="btn" id="orbit" aria-pressed="false"></button>
+  </section>
+
+  <section class="band" id="scenarios">
+    <div class="wrap">
+      <div class="sec-intro">
+        <h2 class="h2">Seven crises, one engine.</h2>
+        <p class="lede">Each hazard is a plug-in that says how it stresses city systems. Everything downstream (propagation, discovery, crises, interventions, validation) is shared, and runs unchanged on a city it has never seen.</p>
+      </div>
     </div>
-  </footer>
+    <div class="strip" id="strip" aria-label="Scenarios"></div>
+    <div class="wrap strip-foot"><a class="text-link" href="scenarios.html">Compare every scenario side by side <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a></div>
+  </section>
 
-  <div class="loading" id="loading">
-    <div class="loading-title">CASCADE 72 · Digital Twin</div>
-    <div class="loading-bar"><i></i></div>
-    <div class="loading-step" id="loadingStep">Loading city model…</div>
-  </div>
-</div>
+  <section class="band" id="proof">
+    <div class="wrap">
+      <div class="sec-intro">
+        <h2 class="h2">Scored on replays, with the future locked away.</h2>
+        <p class="lede">Every forecast reads only the sensor data that had arrived by its time stamp, then is scored against a hidden ground-truth run the twin never sees. Warning rule: P(critical within 24 h) ≥ 60%.</p>
+      </div>
+      <div class="proof-grid">
+        <div class="table-scroll"><table class="dtable" id="scoreTable"><thead><tr><th>Scenario</th><th class="n">Median lead</th><th class="n">Detection</th><th class="n">False alarms</th><th class="n">Brier</th><th class="n">Skill</th></tr></thead><tbody></tbody></table></div>
+        <figure class="reliab">
+          <canvas class="chart" id="relChart" style="height:240px"></canvas>
+          <figcaption>Reliability, monsoon replay. Forecast probability of reaching CRITICAL within 6, 12 or 24 h against how often it happened. The diagonal is perfect calibration.</figcaption>
+        </figure>
+      </div>
+      <p class="future-lock"><span class="mono">0</span> reads from the future. Every input carries its arrival time, and the assimilation at step k only ever sees steps ≤ k.</p>
+    </div>
+  </section>
 
-<!--BUILD:SCRIPTS-->
-<script src="config.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.js"></script>
-<script>window.maplibregl || document.write('<script src="src/vendor/maplibre-gl-4.7.1.js"><\/script>');</script>
-<script>
-  // ?city=nagpur (default) | raleigh. Both cities' geodata load; the app picks one.
-  window.TWIN_CITY = (function () {
-    var c = (new URLSearchParams(location.search).get('city') || 'nagpur').toLowerCase();
-    return /^[a-z-]+$/.test(c) ? c : 'nagpur';
-  })();
-</script>
+  <section class="band" id="honest">
+    <div class="wrap honest">
+      <div>
+        <h2 class="h2">Honest about what is real.</h2>
+        <p class="lede">No Indian city publishes live bed counts, feeder status and ambulance traces. So the forecaster is tested against a hidden world model it never sees, running on real geography.</p>
+      </div>
+      <div class="honest-lists">
+        <div><h3 class="h3">Real</h3><ul><li>Roads, rivers, lakes, buildings, substations, hospitals, junctions (OpenStreetMap)</li><li>Live 31-member weather ensembles (Open-Meteo GFS)</li><li>Storm timing and totals for the 2023 replay (IMD-reported)</li><li>Population totals by city, distributed by street and building density</li></ul></div>
+        <div><h3 class="h3">Simulated, labelled</h3><ul><li>Drain, feeder, tower, hospital and ambulance telemetry</li><li>Which link carries how much stress (hidden from the forecaster)</li><li>Citizen reports, including planted false ones</li><li>Sensor faults and the red-team attacks you launch yourself</li></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band cta-band">
+    <div class="wrap cta">
+      <h2 class="h1">The window is 72 hours. Use it.</h2>
+      <div class="actions">
+        <a class="btn primary" href="twin.html">Open the operations room <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
+        <a class="btn" href="citizen.html">Check my area</a>
+        <a class="btn" href="method.html">How it works</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer id="site-footer"></footer>
+
 <script src="src/js/data/geodata_nagpur.js"></script>
-<script src="src/js/data/geodata.js"></script>
 <script src="src/js/core.js"></script>
 <script src="src/js/engine/scenarios.js"></script>
-<script src="src/js/engine/engine.js"></script>
-<script src="src/js/engine/interventions.js"></script>
-<script src="src/js/engine/analytics.js"></script>
-<script src="src/js/engine/comms.js"></script>
-<script src="src/js/engine/redteam.js"></script>
-<script src="src/js/engine/live.js"></script>
-<script src="src/js/map/icons.js"></script>
-<script src="src/js/map/geom.js"></script>
-<script src="src/js/map/style.js"></script>
-<script src="src/js/map/layers.js"></script>
-<script src="src/js/map/markers.js"></script>
-<script src="src/js/map/radar.js"></script>
-<script src="src/js/map/twinmap.js"></script>
-<script src="src/js/ui/charts.js"></script>
-<script src="src/js/ui/feed.js"></script>
-<script src="src/js/ui/sidebar.js"></script>
-<script src="src/js/ui/inspector.js"></script>
-<script src="src/js/ui/timeline.js"></script>
-<script src="src/js/ui/drawers.js"></script>
-<script src="src/js/ui/ops.js"></script>
-<script src="src/js/ui/app.js"></script>
-<!--/BUILD:SCRIPTS-->
+<script src="src/js/site/site.js"></script>
+<script src="src/js/site/citycanvas.js"></script>
+<script src="src/js/site/home.js"></script>
 </body>
 </html>

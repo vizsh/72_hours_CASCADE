@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Knowledge graph · CASCADE 72</title>
+<meta name="description" content="The dependency graph between Nagpur's drains, roads, substations, telecom sites, ambulances and hospitals, learned live from sensor streams by sparse Bayesian regression.">
+<meta name="theme-color" content="#090b0e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Crect width='26' height='26' rx='5' fill='%23090b0e'/%3E%3Cpath d='M13 2.5 22 7.7v10.6L13 23.5 4 18.3V7.7z' fill='none' stroke='%2379a7e3' stroke-width='1.6'/%3E%3Cpath d='M8.5 16.5v-5l2.7-1.5v6.5M12.8 16.5V8.8l2.7-1.5v9.2' fill='none' stroke='%23e4e8ee' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="src/css/tokens.css">
+<link rel="stylesheet" href="src/css/base.css">
+<link rel="stylesheet" href="src/css/site.css">
+<link rel="stylesheet" href="src/css/pages.css">
+</head>
+<body class="page-graph">
+<header id="site-header"></header>
+<main>
+  <section class="wrap page-head graph-head">
+    <h1 class="h1">The dependency graph, learned while it happens.</h1>
+    <p class="lede">Nobody hands the twin a wiring diagram. Every link between two facilities starts as a hypothesis with no weight. Sparse Bayesian regression on the sensor streams confirms it, prunes it, or leaves it waiting for evidence. Scrub the clock and watch the structure appear.</p>
+  </section>
+
+  <section class="graph-app wrap">
+    <div class="graph-bar">
+      <select class="field" id="gScen" aria-label="Scenario"></select>
+      <div class="seg" id="gLayout" role="group" aria-label="Layout">
+        <button type="button" data-l="force" aria-pressed="true">Force</button>
+        <button type="button" data-l="map" aria-pressed="false">Map</button>
+        <button type="button" data-l="systems" aria-pressed="false">Systems</button>
+      </div>
+      <div class="g-time">
+        <button class="btn sm" id="gLearn" type="button">Watch it learn</button>
+        <input type="range" id="gT" min="0" max="144" value="144" aria-label="Time">
+        <span class="mono" id="gTlabel">T+72.0h</span>
+      </div>
+      <label class="g-toggle"><input type="checkbox" id="gFakes"> Reveal planted fakes</label>
+    </div>
+    <div class="graph-chips" id="gChips"></div>
+    <div class="graph-body">
+      <div class="graph-stage panel">
+        <canvas id="gCanvas" aria-label="Interactive dependency graph. Drag nodes, scroll to zoom, click a facility for details."></canvas>
+        <div class="graph-status"><span class="status-line" id="gStatus"><i class="led"></i>Assimilating 72 h of sensor streams…</span></div>
+        <div class="graph-legend legend-inline">
+          <span><i style="border-color:#79a7e3"></i>confirmed</span>
+          <span><i style="border-color:#6a737e;border-top-style:dashed"></i>awaiting evidence</span>
+          <span><i style="border-color:rgba(229,72,77,.6);border-top-style:dotted"></i>pruned</span>
+          <span><i class="box" style="background:#ef6b73;width:9px"></i>particles: stress flowing now</span>
+        </div>
+      </div>
+      <aside class="graph-side panel" id="gSide" aria-live="polite"></aside>
+    </div>
+  </section>
+
+  <section class="band tight">
+    <div class="wrap graph-explain">
+      <div>
+        <h2 class="h2">How a link earns its line.</h2>
+      </div>
+      <div class="body">
+        <p>For every facility, the twin regresses what it observed against what its upstream neighbours were doing one lag earlier, after removing the direct effect of the hazard. Each candidate link gets a zero-mean prior, so nothing is assumed. Its prior precision is re-estimated as evidence arrives (automatic relevance determination). A link whose upstream never left its normal band carries no information and stays a candidate; an exercised link is confirmed or pruned.</p>
+        <p>Seven of Nagpur's 102 candidate links were planted as fakes: plausible on paper, absent in the hidden world. Tick <b>Reveal planted fakes</b> to see whether the graph was fooled. The learned weights are the ones the operations room uses to explain every forecast.</p>
+      </div>
+    </div>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<script src="src/js/data/geodata_nagpur.js"></script>
+<script src="src/js/core.js"></script>
+<script src="src/js/engine/scenarios.js"></script>
+<script src="src/js/site/site.js"></script>
+<script src="src/js/site/graph.js"></script>
+</body>
+</html>

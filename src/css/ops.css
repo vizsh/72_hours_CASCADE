@@ -130,3 +130,7 @@
 .dl-note b { color: var(--watch); font-family: var(--font-mono); font-weight: 500; }
 .crr-cross { display: block; margin-top: 5px; font-size: var(--fs-xs); color: var(--text-2); }
 .crr-cross b { color: var(--high); font-family: var(--font-mono); font-weight: 500; }
+
+/* Brand links back to the website */
+.brand-link { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; border-radius: 6px; }
+.brand-link:hover .brand-title { color: #fff; }

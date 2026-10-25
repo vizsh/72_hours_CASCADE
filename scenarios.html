@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scenarios · CASCADE 72</title>
+<meta name="description" content="Seven urban crises run through one cascade engine: a monsoon cloudburst, a chlorine release, festival crowds, a grid and telecom blackout, tropical rain, a flash flood and a heat wave.">
+<meta name="theme-color" content="#090b0e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Crect width='26' height='26' rx='5' fill='%23090b0e'/%3E%3Cpath d='M13 2.5 22 7.7v10.6L13 23.5 4 18.3V7.7z' fill='none' stroke='%2379a7e3' stroke-width='1.6'/%3E%3Cpath d='M8.5 16.5v-5l2.7-1.5v6.5M12.8 16.5V8.8l2.7-1.5v9.2' fill='none' stroke='%23e4e8ee' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="src/css/tokens.css">
+<link rel="stylesheet" href="src/css/base.css">
+<link rel="stylesheet" href="src/css/site.css">
+<link rel="stylesheet" href="src/css/pages.css">
+</head>
+<body class="page-scenarios">
+<header id="site-header"></header>
+<main>
+  <section class="wrap page-head">
+    <h1 class="h1">Seven crises, one engine.</h1>
+    <p class="lede">Weather, infrastructure, industry and crowds. Each hazard only says how it stresses the city; propagation, dependency learning, crisis tracking, interventions and validation are shared. Every number on this page is computed in your browser by the same engine as the operations room.</p>
+    <div class="actions"><div class="seg" id="sFilter" role="group" aria-label="Filter scenarios">
+      <button type="button" data-f="all" aria-pressed="true">All</button><button type="button" data-f="weather" aria-pressed="false">Weather</button><button type="button" data-f="infrastructure" aria-pressed="false">Infrastructure</button><button type="button" data-f="human" aria-pressed="false">Industry and crowds</button>
+    </div><span class="status-line" id="sStatus"><i class="led"></i>Running scenarios in background threads…</span></div>
+  </section>
+
+  <section class="wrap">
+    <h2 class="h3 reach-title">Which systems each crisis reaches, and when</h2>
+    <div class="table-scroll"><table class="reach" id="reach"><thead><tr><th>Scenario</th></tr></thead><tbody></tbody></table></div>
+    <p class="reach-note dim">Each cell shows when that system first reached HIGH RISK, shaded by its peak. A blank cell means the crisis never touched it.</p>
+  </section>
+
+  <section class="wrap dossiers" id="dossiers"></section>
+
+  <section class="band tight">
+    <div class="wrap unseen">
+      <div>
+        <h2 class="h2">The same engine on a city it has never seen.</h2>
+        <p class="lede">Raleigh, North Carolina ships as the generalisation test: a different river system, grid, road network, time zone and language set, with nothing retuned. The action catalogue is generated from its own dependency graph.</p>
+        <div class="actions" style="margin-top:22px"><a class="btn" href="twin.html?city=raleigh">Open Raleigh in the operations room →</a></div>
+      </div>
+      <div class="dossier-chart panel" id="raleigh"><div class="skeleton" style="height:220px"></div></div>
+    </div>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<script src="src/js/data/geodata_nagpur.js"></script>
+<script src="src/js/core.js"></script>
+<script src="src/js/engine/scenarios.js"></script>
+<script src="src/js/site/site.js"></script>
+<script src="src/js/site/scenarios.js"></script>
+</body>
+</html>

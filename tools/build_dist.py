@@ -33,7 +33,7 @@ def block(html, name):
 
 
 def main():
-    html = read("index.html")
+    html = read("twin.html")  # the operations room; the website pages are served as they are
 
     head = block(html, "HEAD")
     fonts = re.findall(r'<link rel="stylesheet" href="(https://fonts\.googleapis\.com[^"]+)">', head.group(1))

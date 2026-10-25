@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>
+  // The twin registers no service worker. One left on this origin by another localhost
+  // project intercepts requests and serves stale scripts, so retire it and reload once.
+  (function () {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.getRegistrations().then(function (rs) {
+      if (!rs.length) return;
+      Promise.all(rs.map(function (r) { return r.unregister(); })).then(function () {
+        var again = false;
+        try { again = !sessionStorage.getItem('twin-sw-cleared'); sessionStorage.setItem('twin-sw-cleared', '1'); } catch (e) { /* storage blocked */ }
+        if (navigator.serviceWorker.controller && again) location.reload();
+      });
+    }).catch(function () {});
+  })();
+</script>
+<title>Operations room · CASCADE 72</title>
+<meta name="description" content="Urban digital twin of Nagpur (and Raleigh as an unseen-city test): real OpenStreetMap city model with a cascade-intelligence layer that predicts how floods, grid faults, toxic releases and crowds propagate through drainage, roads, power, telecom and hospitals up to 72 hours ahead.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Crect width='26' height='26' rx='5' fill='%23090b0e'/%3E%3Cpath d='M13 2.5 22 7.7v10.6L13 23.5 4 18.3V7.7z' fill='none' stroke='%2379a7e3' stroke-width='1.6'/%3E%3Cpath d='M8.5 16.5v-5l2.7-1.5v6.5M12.8 16.5V8.8l2.7-1.5v9.2' fill='none' stroke='%23e4e8ee' stroke-width='1.6'/%3E%3C/svg%3E">
+<!--BUILD:HEAD-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500&display=swap">
+<link rel="stylesheet" href="src/vendor/maplibre-gl-4.7.1.css">
+<link rel="stylesheet" href="src/css/tokens.css">
+<link rel="stylesheet" href="src/css/base.css">
+<link rel="stylesheet" href="src/css/layout.css">
+<link rel="stylesheet" href="src/css/panels.css">
+<link rel="stylesheet" href="src/css/map.css">
+<link rel="stylesheet" href="src/css/ops.css">
+<!--/BUILD:HEAD-->
+</head>
+<body>
+<div class="app" id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <button class="icon-btn drawer-btn" id="drawerBtn" aria-label="Show assets and alerts"></button>
+      <a class="brand-link" href="index.html" title="Back to the CASCADE 72 site">
+      <svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true">
+        <path d="M13 1.5 23 7.25v11.5L13 24.5 3 18.75V7.25z" fill="none" stroke="#79a7e3" stroke-width="1.4"/>
+        <path d="M8 17V11.5l3-1.7V17M12.6 17V8.6l3-1.7V17M17.2 17v-5.2l2.2-1.2" fill="none" stroke="#e4e8ee" stroke-width="1.4" stroke-linejoin="round"/>
+      </svg>
+      <div class="brand-text">
+        <div class="brand-title">Digital Twin</div>
+        <div class="brand-sub">Cascade Intelligence</div>
+      </div>
+      </a>
+    </div>
+
+    <div class="top-center">
+      <div class="mode-toggle" role="group" aria-label="Data mode">
+        <button id="modeLive" aria-pressed="true"><span class="live-dot"></span>Live</button>
+        <button id="modeHist" aria-pressed="false"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg><span class="mode-label-long">Historical</span></button>
+      </div>
+      <div class="clock">
+        <span class="clock-t" id="clockT">T+34.5h</span>
+        <span class="clock-d" id="clockD"></span>
+        <span class="clock-tag" id="clockTag">LIVE</span>
+      </div>
+    </div>
+
+    <div class="top-right">
+      <label class="select city-sel"><select id="citySel" class="glass" aria-label="City"></select><span id="citySelIco"></span></label>
+      <div class="sys" id="sys"><span class="sys-led"></span><span class="sys-text">Starting…</span></div>
+      <button class="city-chip people-chip cr-chip" id="crChip" type="button" aria-label="Cascade-R"></button>
+      <div class="city-chip people-chip" id="peopleChip"></div>
+      <div class="city-chip" id="cityChip"></div>
+    </div>
+  </header>
+
+  <div id="map" aria-label="3D city map"></div>
+
+  <div class="map-ui">
+    <nav class="crumbs glass" id="crumbs" aria-label="Location"></nav>
+    <div class="tools" role="toolbar" aria-label="Analysis tools">
+      <button class="btn glass" id="btnGraph" aria-pressed="false"></button>
+      <button class="btn glass" id="btnPlan" aria-pressed="false"></button>
+      <button class="btn glass" id="btnValid" aria-pressed="false"></button>
+      <span class="tools-sep" aria-hidden="true"></span>
+      <button class="btn glass" id="btnCrises" aria-pressed="false"></button>
+      <button class="btn glass" id="btnRed" aria-pressed="false"></button>
+      <button class="btn glass" id="btnComms" aria-pressed="false"></button>
+      <label class="select"><select id="scenario" class="glass" aria-label="Scenario"></select><span id="scenIco"></span></label>
+    </div>
+    <div class="cascade-strip glass" id="strip" aria-label="Cascade stages"></div>
+    <div class="legend glass" id="legend"></div>
+    <div class="map-ctrl">
+      <div class="group glass">
+        <button id="zoomIn" aria-label="Zoom in"></button>
+        <button id="zoomOut" aria-label="Zoom out"></button>
+      </div>
+      <div class="group glass">
+        <button id="north" aria-label="Reset bearing to north"></button>
+        <button id="tilt" aria-label="Toggle 3D tilt"></button>
+      </div>
+    </div>
+    <div class="toast glass" id="toast" hidden></div>
+
+    <section class="drawer graph glass" id="drawerGraph" hidden aria-label="Dependency graph"></section>
+    <section class="drawer plan glass" id="drawerPlan" hidden aria-label="Interventions"></section>
+    <section class="drawer valid glass" id="drawerValid" hidden aria-label="Temporal validation"></section>
+    <section class="drawer crises glass" id="drawerCrises" hidden aria-label="Crisis registry"></section>
+    <section class="drawer red glass" id="drawerRed" hidden aria-label="Red-team console"></section>
+    <section class="drawer comms glass" id="drawerComms" hidden aria-label="Communications"></section>
+    <div class="mode-bar glass" id="modeBar" hidden></div>
+  </div>
+
+  <aside class="left glass" aria-label="Assets, layers and alerts">
+    <div class="left-head">
+      <div class="count-line">
+        <h2><span id="assetCount">44</span> Monitored assets</h2>
+        <span class="caps" id="assetCrit"></span>
+      </div>
+      <label class="search">
+        <span id="searchIco"></span>
+        <input id="search" type="search" placeholder="Search assets, streets, sensor IDs" autocomplete="off" aria-label="Search assets">
+      </label>
+    </div>
+    <div class="sec">
+      <div class="sec-head"><span class="sec-title">Layers</span><button class="link-btn" id="layersAll">Show all</button></div>
+      <div class="layers" id="layers"></div>
+    </div>
+    <div class="assets scroll" id="assets"></div>
+    <div class="alerts-sec">
+      <div class="sec-head"><span class="sec-title"><b id="alertCount">0</b>Alerts</span><span class="caps" id="alertWindow">last 6 h</span></div>
+      <div class="alerts scroll" id="alerts"></div>
+    </div>
+  </aside>
+
+  <aside class="right glass" id="inspector" aria-label="Facility inspector"></aside>
+
+  <footer class="bottom glass">
+    <div class="transport">
+      <button class="play" id="play" aria-label="Play"></button>
+      <button class="speed" id="speed" aria-label="Playback speed">2×</button>
+    </div>
+    <div class="tl" id="timeline">
+      <div class="tl-head"><span>72-hour predictive timeline</span><span class="num" id="tlRange"></span></div>
+      <div class="tl-track" id="tlTrack">
+        <canvas id="tlCanvas"></canvas>
+        <div class="tl-now" id="tlNow"><span>NOW</span></div>
+        <div class="tl-thumb" id="tlThumb"><span id="tlThumbT"></span></div>
+      </div>
+      <div class="tl-axis" id="tlAxis"></div>
+    </div>
+    <div class="controls">
+      <button class="btn primary-btn" id="trigger"></button>
+      <button class="btn" id="reset"></button>
+      <button class="btn" id="orbit" aria-pressed="false"></button>
+    </div>
+  </footer>
+
+  <div class="loading" id="loading">
+    <div class="loading-title">CASCADE 72 · Digital Twin</div>
+    <div class="loading-bar"><i></i></div>
+    <div class="loading-step" id="loadingStep">Loading city model…</div>
+  </div>
+</div>
+
+<!--BUILD:SCRIPTS-->
+<script src="config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.js"></script>
+<script>window.maplibregl || document.write('<script src="src/vendor/maplibre-gl-4.7.1.js"><\/script>');</script>
+<script>
+  // ?city=nagpur (default) | raleigh. Both cities' geodata load; the app picks one.
+  window.TWIN_CITY = (function () {
+    var c = (new URLSearchParams(location.search).get('city') || 'nagpur').toLowerCase();
+    return /^[a-z-]+$/.test(c) ? c : 'nagpur';
+  })();
+</script>
+<script src="src/js/data/geodata_nagpur.js"></script>
+<script src="src/js/data/geodata.js"></script>
+<script src="src/js/core.js"></script>
+<script src="src/js/engine/scenarios.js"></script>
+<script src="src/js/engine/engine.js"></script>
+<script src="src/js/engine/interventions.js"></script>
+<script src="src/js/engine/analytics.js"></script>
+<script src="src/js/engine/comms.js"></script>
+<script src="src/js/engine/redteam.js"></script>
+<script src="src/js/engine/live.js"></script>
+<script src="src/js/map/icons.js"></script>
+<script src="src/js/map/geom.js"></script>
+<script src="src/js/map/style.js"></script>
+<script src="src/js/map/layers.js"></script>
+<script src="src/js/map/markers.js"></script>
+<script src="src/js/map/radar.js"></script>
+<script src="src/js/map/twinmap.js"></script>
+<script src="src/js/ui/charts.js"></script>
+<script src="src/js/ui/feed.js"></script>
+<script src="src/js/ui/sidebar.js"></script>
+<script src="src/js/ui/inspector.js"></script>
+<script src="src/js/ui/timeline.js"></script>
+<script src="src/js/ui/drawers.js"></script>
+<script src="src/js/ui/ops.js"></script>
+<script src="src/js/ui/app.js"></script>
+<!--/BUILD:SCRIPTS-->
+</body>
+</html>

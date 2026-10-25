@@ -108,6 +108,28 @@
     tm.map.jumpTo({ ...tm.OVERVIEW, zoom: tm.OVERVIEW.zoom - 0.9, pitch: 30, bearing: tm.OVERVIEW.bearing - 40 });
     tm.overview({ duration: 2600 });
     requestAnimationFrame(loop);
+    deepLinks();
+  }
+
+  // Links from the website: ?select=ID, ?scenario=live, ?plan=a,b&k=K (lab → ghost city).
+  function deepLinks() {
+    const q = new URLSearchParams(location.search);
+    if (q.get('scenario') === 'live') goLive($('scenario'));
+    const sel = q.get('select');
+    if (sel) { const i = app.geo.facilities.findIndex((f) => f.id === sel); if (i >= 0) setTimeout(() => app.select(i, { fly: true }), 2700); }
+    const plan = q.get('plan');
+    if (plan && q.get('scenario') !== 'live') {
+      const ids = plan.split(',');
+      const k = Math.max(0, Math.min(app.engine.K - 2, +q.get('k') || app.engine.kOf(app.state.nowT)));
+      const pl = T.interventions.create(app.engine);
+      const valid = ids.filter((id) => pl.CATALOG.some((a) => a.id === id));
+      if (!valid.length) return;
+      const tr = pl.trajectory(k, valid, 24), ev = pl.evaluate(k, valid, 16);
+      if (k !== app.engine.kOf(app.state.nowT)) { setMode('historical', true); app.state.t = Math.min(app.engine.HOURS, k * app.engine.DT + 8); }
+      else app.state.t = Math.min(app.engine.HOURS, app.state.nowT + 8);
+      app.setGhost({ ...tr, id: k + ':' + valid.join(','), labels: valid.map((id) => pl.CATALOG.find((a) => a.id === id).label), reduction: ev.reduction });
+      toast(`<b>Ghost city</b><span>The plan from the lab is applied from ${fmtT(k * app.engine.DT)}; the map shows the city with it. Exit from the bar at the bottom.</span>`);
+    }
   }
 
   // Arc geometry for power/feed links and the dependency-arc layer.

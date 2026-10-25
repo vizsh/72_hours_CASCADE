@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>My area · CASCADE 72</title>
+<meta name="description" content="Is my neighbourhood at risk in the next 72 hours? A plain-language forecast for Nagpur residents, with what to do in English, Hindi and Marathi.">
+<meta name="theme-color" content="#090b0e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Crect width='26' height='26' rx='5' fill='%23090b0e'/%3E%3Cpath d='M13 2.5 22 7.7v10.6L13 23.5 4 18.3V7.7z' fill='none' stroke='%2379a7e3' stroke-width='1.6'/%3E%3Cpath d='M8.5 16.5v-5l2.7-1.5v6.5M12.8 16.5V8.8l2.7-1.5v9.2' fill='none' stroke='%23e4e8ee' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="src/css/tokens.css">
+<link rel="stylesheet" href="src/css/base.css">
+<link rel="stylesheet" href="src/css/site.css">
+<link rel="stylesheet" href="src/css/pages.css">
+</head>
+<body class="page-citizen">
+<header id="site-header"></header>
+<main>
+  <section class="wrap page-head citizen-head">
+    <h1 class="h1">Is my area at risk?</h1>
+    <p class="lede">Pick your neighbourhood. You get what is likely to happen there, when, how sure the forecast is, and what to do about it, in your language.</p>
+    <div class="citizen-search">
+      <input class="field" id="cArea" list="cAreas" placeholder="Dharampeth, Sitabuldi, Mankapur…" aria-label="Your area" autocomplete="off">
+      <datalist id="cAreas"></datalist>
+      <select class="field" id="cScen" aria-label="Situation"></select>
+    </div>
+  </section>
+
+  <section class="wrap citizen-body">
+    <div class="citizen-map panel">
+      <canvas id="cMap" aria-label="Map of Nagpur neighbourhoods coloured by forecast risk. Click to choose an area."></canvas>
+      <div class="cmap-bar">
+        <div class="seg" id="cH" role="group" aria-label="Forecast horizon"><button type="button" data-h="0" aria-pressed="true">Now</button><button type="button" data-h="6" aria-pressed="false">+6 h</button><button type="button" data-h="12" aria-pressed="false">+12 h</button><button type="button" data-h="24" aria-pressed="false">+24 h</button></div>
+        <span class="mono dim" id="cAsOf"></span>
+      </div>
+    </div>
+    <article class="citizen-card" id="cCard" aria-live="polite">
+      <div class="skeleton" style="height:120px"></div><div class="skeleton" style="height:180px;margin-top:16px"></div>
+    </article>
+  </section>
+
+  <section class="band tight">
+    <div class="wrap citizen-foot">
+      <p class="body">This page reads the same forecast as the operations room, issued with data available at the replay's "now". Probabilities come from 200 simulated futures weighted by the sensor evidence. In an emergency call <b>112</b>; for an ambulance <b>108</b>. Decision support only: follow instructions from local authorities.</p>
+    </div>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<script src="src/js/data/geodata_nagpur.js"></script>
+<script src="src/js/core.js"></script>
+<script src="src/js/engine/scenarios.js"></script>
+<script src="src/js/site/site.js"></script>
+<script src="src/js/site/citycanvas.js"></script>
+<script src="src/js/site/citizen.js"></script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Live forecast · CASCADE 72</title>
+<meta name="description" content="Today's weather for any city as 31 possible futures from the GFS ensemble, and a one-click run through the Nagpur or Raleigh digital twin.">
+<meta name="theme-color" content="#090b0e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Crect width='26' height='26' rx='5' fill='%23090b0e'/%3E%3Cpath d='M13 2.5 22 7.7v10.6L13 23.5 4 18.3V7.7z' fill='none' stroke='%2379a7e3' stroke-width='1.6'/%3E%3Cpath d='M8.5 16.5v-5l2.7-1.5v6.5M12.8 16.5V8.8l2.7-1.5v9.2' fill='none' stroke='%23e4e8ee' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="src/css/tokens.css">
+<link rel="stylesheet" href="src/css/base.css">
+<link rel="stylesheet" href="src/css/site.css">
+<link rel="stylesheet" href="src/css/pages.css">
+</head>
+<body class="page-live">
+<header id="site-header"></header>
+<main>
+  <section class="wrap page-head">
+    <h1 class="h1">Today's weather, as 31 futures.</h1>
+    <p class="lede">A single forecast line hides how unsure the atmosphere is. The GFS ensemble runs the same model 31 times from slightly different starting points. Where the lines agree, plan on it; where they fan out, plan for the spread.</p>
+    <div class="live-search">
+      <div class="live-in"><input class="field" id="wCity" placeholder="Pune, Indore, Guwahati…" aria-label="City" autocomplete="off"><div class="live-sug" id="wSug" role="listbox" hidden></div></div>
+      <div class="live-quick" id="wQuick"></div>
+    </div>
+  </section>
+
+  <section class="wrap live-body">
+    <div class="live-summary" id="wSummary"><span class="status-line"><i class="led"></i>Fetching the ensemble from Open-Meteo…</span></div>
+    <figure class="live-fig panel">
+      <figcaption><span>Rain rate, mm per hour</span><span class="legend-inline"><span><i style="border-color:rgba(121,167,227,.6)"></i>31 members</span><span><i style="border-color:#e4e8ee"></i>ensemble mean</span><span><i class="box" style="background:rgba(121,167,227,.18)"></i>10–90% range</span></span></figcaption>
+      <canvas class="chart" id="wRain" style="height:300px"></canvas>
+    </figure>
+    <div class="live-split">
+      <figure class="live-fig panel"><figcaption><span>Chance of heavy rain (≥ 5 mm/h)</span></figcaption><canvas class="chart" id="wHeavy" style="height:180px"></canvas></figure>
+      <figure class="live-fig panel"><figcaption><span>Temperature, °C</span><span class="legend-inline"><span><i class="box" style="background:rgba(238,138,42,.25)"></i>member range</span><span><i style="border-color:#ee8a2a"></i>median</span></span></figcaption><canvas class="chart" id="wTemp" style="height:180px"></canvas></figure>
+      <figure class="live-fig panel"><figcaption><span>Wind, km/h</span><span class="legend-inline"><span><i style="border-color:#5fc8d6"></i>median</span><span><i style="border-color:#5fc8d6;border-top-style:dashed"></i>strongest member</span></span></figcaption><canvas class="chart" id="wWind" style="height:180px"></canvas></figure>
+    </div>
+    <div class="live-cta" id="wCta"></div>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<script src="src/js/data/geodata_nagpur.js"></script>
+<script src="src/js/core.js"></script>
+<script src="src/js/engine/scenarios.js"></script>
+<script src="src/js/site/site.js"></script>
+<script src="src/js/site/forecast.js"></script>
+</body>
+</html>

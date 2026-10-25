@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Intervention lab · CASCADE 72</title>
+<meta name="description" content="Choose preventive actions under a crew budget and compare them with doing nothing on the same simulated futures: outcomes, side effects and the decision deadline.">
+<meta name="theme-color" content="#090b0e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Crect width='26' height='26' rx='5' fill='%23090b0e'/%3E%3Cpath d='M13 2.5 22 7.7v10.6L13 23.5 4 18.3V7.7z' fill='none' stroke='%2379a7e3' stroke-width='1.6'/%3E%3Cpath d='M8.5 16.5v-5l2.7-1.5v6.5M12.8 16.5V8.8l2.7-1.5v9.2' fill='none' stroke='%23e4e8ee' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="src/css/tokens.css">
+<link rel="stylesheet" href="src/css/base.css">
+<link rel="stylesheet" href="src/css/site.css">
+<link rel="stylesheet" href="src/css/pages.css">
+</head>
+<body class="page-lab">
+<header id="site-header"></header>
+<main>
+  <section class="wrap page-head">
+    <h1 class="h1">Break the chain before the window closes.</h1>
+    <p class="lede">Pick actions within a crew budget. Every plan is re-simulated from the decision time on the most probable futures, the same futures as doing nothing, so the difference you see is the action and not luck.</p>
+  </section>
+
+  <section class="wrap lab-bar">
+    <select class="field" id="lScen" aria-label="Scenario"></select>
+    <div class="lab-time">
+      <span class="label">Decide at</span>
+      <input type="range" id="lK" min="0" max="120" value="74" aria-label="Decision time">
+      <span class="mono" id="lKlabel">T+37.0h</span>
+    </div>
+    <div class="lab-budget"><span class="label">Crews</span><div class="seg" id="lBudget"><button type="button" data-b="3" aria-pressed="false">3</button><button type="button" data-b="5" aria-pressed="true">5</button><button type="button" data-b="7" aria-pressed="false">7</button></div></div>
+    <button class="btn primary" id="lRec" type="button">Recommend within budget</button>
+  </section>
+
+  <section class="wrap lab-body">
+    <div class="lab-actions">
+      <div class="lab-pips" id="lPips" aria-label="Crews used"></div>
+      <div id="lActs" class="lab-acts"><div class="skeleton" style="height:96px"></div><div class="skeleton" style="height:96px"></div><div class="skeleton" style="height:96px"></div></div>
+    </div>
+    <div class="lab-results">
+      <div class="lab-verdict" id="lVerdict"><span class="status-line"><i class="led"></i>Loading the action catalogue…</span></div>
+      <div class="lab-ledger" id="lLedger"></div>
+      <figure class="lab-fig">
+        <figcaption><span>Facilities at CRITICAL</span><span class="legend-inline"><span><i style="border-color:#8a939e"></i>Do nothing</span><span><i style="border-color:#b39af0"></i>With the plan</span></span></figcaption>
+        <canvas class="chart" id="lChart" style="height:240px"></canvas>
+      </figure>
+      <div class="lab-split">
+        <figure class="lab-fig">
+          <figcaption><span>Peak risk by system</span></figcaption>
+          <div class="lab-sys" id="lSys"></div>
+        </figure>
+        <figure class="lab-fig">
+          <figcaption><span>Decision deadline: benefit if crews start later</span></figcaption>
+          <canvas class="chart" id="lDead" style="height:150px"></canvas>
+          <p class="lab-dl" id="lDl">Pick an action to see how long you can wait.</p>
+        </figure>
+      </div>
+      <div class="lab-side" id="lSide"></div>
+      <div class="lab-foot"><a class="btn" id="lGhost" href="twin.html">See it as a ghost city in the operations room →</a></div>
+    </div>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<script src="src/js/data/geodata_nagpur.js"></script>
+<script src="src/js/core.js"></script>
+<script src="src/js/engine/scenarios.js"></script>
+<script src="src/js/site/site.js"></script>
+<script src="src/js/site/lab.js"></script>
+</body>
+</html>

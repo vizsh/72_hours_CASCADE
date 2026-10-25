@@ -4,15 +4,22 @@ A 3D digital twin of **Nagpur, Maharashtra** that predicts how an urban crisis c
 drainage, roads, power, telecom, emergency response and hospitals up to 72 hours ahead. It
 identifies the crises taking shape, explains every forecast, plans constrained interventions,
 withstands attacks on its own data, and issues the warnings. **Raleigh, NC** ships as the
-unseen-city test: the same engine runs on it unchanged.
+unseen-city test: the same engine runs on it unchanged. Around the operations room sits a
+multi-page website: a live replay of the 2023 cloudburst on the home page, the learned knowledge
+graph, an intervention lab, a scenario library, a live ensemble forecast, a public "My area" view
+and an interactive method page. Every number on it is computed in the browser by the same engine.
 
 Built for CASCADE '26 (IIIT Nagpur), Theme 2 · Problem 2, *The 72-Hour Warning*. The city model
 is real: OpenStreetMap buildings, streets, rivers, substations, hospitals and junctions. The
 cascade intelligence is an analytical layer on top of it, the way production CIM and digital-twin
 platforms are structured.
 
-| Crisis registry and footprints | Red-team console |
+| Home: the 2023 cloudburst, replayed | Knowledge graph, learned live |
 | --- | --- |
+| ![Home](docs/site-home.jpg) | ![Knowledge graph](docs/site-graph.jpg) |
+| **Intervention lab** | **My area, for residents** |
+| ![Intervention lab](docs/site-lab.jpg) | ![My area](docs/site-my-area.jpg) |
+| **Crisis registry and footprints** | **Red-team console** |
 | ![Crisis registry](docs/crisis-registry.jpg) | ![Red team](docs/red-team.jpg) |
 | **Decision deadline and ghost city** | **Public alerts in English, Hindi and Marathi** |
 | ![Ghost city](docs/ghost-city.jpg) | ![Public alerts](docs/public-alerts.jpg) |
@@ -21,8 +28,9 @@ platforms are structured.
 
 ```bash
 python3 tools/serve.py           # http://localhost:8000
-# open http://localhost:8000              Nagpur (default)
-# open http://localhost:8000/?city=raleigh   the unseen-city test
+# open http://localhost:8000                       the website
+# open http://localhost:8000/twin.html             the operations room (Nagpur)
+# open http://localhost:8000/twin.html?city=raleigh   the unseen-city test
 ```
 
 Any static file server works. `tools/serve.py` is the plain Python server plus two development
@@ -31,15 +39,36 @@ conveniences:
 - It answers `/sw.js` with a self-removing service worker, which clears out a worker left on
   `localhost:8000` by another project.
 
-If a page ever shows "Could not start the twin", reload once with Ctrl+Shift+R. Everything runs in the browser, offline: tiles, glyphs, the
-200-member ensemble and the assimilation all ship with the page. The one online feature is
-**Live weather**, which fetches the Open-Meteo GFS ensemble when you pick it from the scenario menu.
+If a page ever shows "Could not start the twin", reload once with Ctrl+Shift+R.
 
-`python3 tools/build_dist.py` writes `dist/index.html`. That is a single page with all CSS,
+Everything runs in the browser, offline: tiles, glyphs, the 200-member ensemble and the
+assimilation all ship with the page. The online features are **Live weather** and the **Live**
+page, which fetch the Open-Meteo GFS ensemble (and city search) on demand.
+
+`python3 tools/build_dist.py` writes `dist/index.html`: the operations room as a single page with all CSS,
 JavaScript and both cities inlined, plus the tiles packed as base64 bundles for hosts that only
 serve text. It runs under a strict Content-Security-Policy.
 
-## Where to look
+## The website
+
+Static pages with no build step, in the same visual language as the operations room. The engine
+runs in a Web Worker pool (`src/js/site/twin-worker.js`), so pages stay responsive while the
+ensemble assimilates. Scenario summaries are cached in the browser after the first visit.
+Press **Ctrl K** (or `/`) on any page to jump to a page, a scenario replay or any of Nagpur's
+57 facilities.
+
+| Page | What it does |
+| --- | --- |
+| `index.html` · Overview | The 23 Sep 2023 cloudburst replayed as a city of light: population columns warm with risk and stress travels between facilities as pulses. **Click any facility to send a pulse through everything that depends on it.** It shows the predicted course the twin issued 18.5 h ahead, a conventional warning beside it, and six live capability demos: crises, Cascade-R, learned links, ghost city, red team and multilingual SMS. A scenario strip and a validation scorecard follow. |
+| `graph.html` · Knowledge graph | The 102 candidate links as a physical graph: drag, zoom, switch between force, map and system layouts, scrub time or press **Watch it learn**. Click a facility for its live drivers and links. **Reveal planted fakes** shows whether the seven fake links fooled it. |
+| `lab.html` · Intervention lab | Pick actions under a crew budget and a decision time. You get the outcome against doing nothing on identical futures, per-system impact, side effects and a decision-deadline curve. One click opens the plan as a ghost city in the operations room. |
+| `scenarios.html` · Scenarios | Hazard × system reach matrix (when each system first hit HIGH) and a dossier per scenario with its curve, Cascade-R, lead time and detection. Raleigh is shown as the unseen city. |
+| `live.html` · Live | Today's GFS ensemble for any city (Open-Meteo search): 31 rain futures, the chance of heavy rain, temperature and wind, with a hand-off to the live twin for Nagpur and Raleigh. |
+| `citizen.html` · My area | A resident's view: pick a neighbourhood on the dot map or by name. You get a plain-language verdict with time and probability, a 36-hour risk ribbon per system, what to do in English, Hindi or Marathi, the nearest hospital's outlook and roads to avoid. |
+| `method.html` · Method | Interactive explainers on live engine output: a particle-filter explorer (200 futures reweighted as you scrub, truth on demand), link learning with ±1 sd, sensor trust under planted faults, the Cascade-R decomposition, and warning lead times. |
+| `twin.html` · Operations room | The full 3D twin. It accepts `?scenario=`, `?city=`, `?select=<facility id>` and `?plan=<action ids>&k=<step>` (opens a lab plan as a ghost city). |
+
+## Where to look in the operations room
 
 | Control | What it shows |
 | --- | --- |
@@ -138,8 +167,9 @@ for a stable score.
 ## Layout
 
 ```
-index.html, config.js      page shell and runtime configuration (?city= selects the geodata)
-src/css/                   tokens, layout, panels, map chrome, operations layer
+index.html                 website home; graph, lab, scenarios, live, citizen, method .html pages
+twin.html, config.js       operations room shell and runtime configuration (?city=, ?scenario=, ?select=, ?plan=)
+src/css/                   tokens, layout, panels, map chrome, operations layer; site.css + pages.css for the website
 src/js/core.js             risk vocabulary, seeded RNG, geo helpers, time zones
 src/js/engine/
   scenarios.js             hazards: rain, heat, grid fault, plume, crowds
@@ -151,6 +181,8 @@ src/js/engine/
   live.js                  Open-Meteo GFS ensemble → live scenario
 src/js/map/                basemap, layers (incl. population massing, crisis footprints), markers, radar
 src/js/ui/                 sidebar, inspector, timeline, drawers, ops drawers, app orchestrator
+src/js/site/               website: worker RPC (rpc.js, twin-worker.js), chrome and palette (site.js),
+                           city canvas (citycanvas.js) and one script per page
 src/js/data/               generated geodata per city (geodata.js = Raleigh, geodata_nagpur.js)
 data/tiles, data/fonts     baked OpenMapTiles vector tiles and label glyphs
 tools/                     data pipeline and tests

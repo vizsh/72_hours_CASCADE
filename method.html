@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Method · CASCADE 72</title>
+<meta name="description" content="How CASCADE 72 forecasts cascades: a 200-member ensemble, a localized particle filter, sensor trust, sparse Bayesian dependency learning, Cascade-R and replay validation with strict future-data isolation.">
+<meta name="theme-color" content="#090b0e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Crect width='26' height='26' rx='5' fill='%23090b0e'/%3E%3Cpath d='M13 2.5 22 7.7v10.6L13 23.5 4 18.3V7.7z' fill='none' stroke='%2379a7e3' stroke-width='1.6'/%3E%3Cpath d='M8.5 16.5v-5l2.7-1.5v6.5M12.8 16.5V8.8l2.7-1.5v9.2' fill='none' stroke='%23e4e8ee' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="src/css/tokens.css">
+<link rel="stylesheet" href="src/css/base.css">
+<link rel="stylesheet" href="src/css/site.css">
+<link rel="stylesheet" href="src/css/pages.css">
+</head>
+<body class="page-method">
+<header id="site-header"></header>
+<main>
+  <section class="wrap page-head">
+    <h1 class="h1">How the twin thinks.</h1>
+    <p class="lede">Seven stages run every half hour on each new batch of readings. Nothing here is a mock-up: the figures below are computed now by the same engine, on the monsoon replay, in a background thread of your browser.</p>
+  </section>
+
+  <section class="wrap">
+    <ol class="pipe" id="pipe" aria-label="Processing pipeline">
+      <li><a href="#trust"><b>Sensor streams</b><span>57 feeds every 30 min, some late, some lying</span></a></li>
+      <li><a href="#trust"><b>Trust</b><span>residuals, flatlines, buddy check, step test</span></a></li>
+      <li><a href="#ensemble"><b>Ensemble</b><span>200 futures, localized particle filter</span></a></li>
+      <li><a href="#learning"><b>Dependencies</b><span>sparse Bayesian regression on 102 links</span></a></li>
+      <li><a href="#cascade-r"><b>Cascade</b><span>crises, Cascade-R, time to critical</span></a></li>
+      <li><a href="lab.html"><b>Interventions</b><span>counterfactuals on the same futures</span></a></li>
+      <li><a href="twin.html"><b>Warnings</b><span>SITREP, CAP 1.2, SMS in three languages</span></a></li>
+    </ol>
+  </section>
+
+  <section class="band" id="ensemble">
+    <div class="wrap method-row">
+      <div class="method-text">
+        <h2 class="h2">Two hundred futures, reweighted every thirty minutes.</h2>
+        <div class="body">
+          <p>Each member samples the storm's timing and size, every link's weight and every facility's sensitivity from a prior. A localized particle filter scores members against the readings that have arrived, facility by facility, and forgets old evidence (about a 23-hour memory) so the model can follow drift.</p>
+          <p>When the evidence gets sharp, tempering keeps at least 12% of members effective, so the ensemble never collapses onto one over-confident story. Drag the issue time and watch the futures that disagree with the readings fade.</p>
+        </div>
+        <div class="method-controls">
+          <select class="field" id="mFac" aria-label="Facility"></select>
+          <label class="g-toggle"><input type="checkbox" id="mTruth"> Reveal hidden truth</label>
+        </div>
+        <div class="method-time"><span class="label">Issued at</span><input type="range" id="mK" min="2" max="140" value="80" aria-label="Issue time"><span class="mono" id="mKlabel"></span></div>
+        <dl class="method-stats" id="mStats"></dl>
+      </div>
+      <figure class="method-fig panel"><canvas class="chart" id="mEns" style="height:400px"></canvas>
+        <figcaption class="legend-inline"><span><i style="border-color:#79a7e3"></i>members, brighter = more weight</span><span><i class="box" style="background:#e4e8ee;width:6px;height:6px;border-radius:50%"></i>readings received</span><span><i style="border-color:#e2b93b"></i>analysis</span><span><i style="border-color:#fff;border-top-style:dashed"></i>truth (hidden)</span></figcaption></figure>
+    </div>
+  </section>
+
+  <section class="band" id="learning">
+    <div class="wrap method-row reverse">
+      <div class="method-text">
+        <h2 class="h2">Links nobody wrote down.</h2>
+        <div class="body">
+          <p>Each facility regresses what it observed on what its upstream neighbours did one lag earlier, after removing the hazard's direct effect. Priors are centred on zero, and each link's prior precision is re-estimated as evidence arrives (automatic relevance determination), so redundant links that move together get pruned.</p>
+          <p>Three links from the monsoon replay: a real one that gets confirmed, a planted fake that gets pruned once it is exercised, and one that never sees enough stress to decide, which is the honest outcome.</p>
+        </div>
+      </div>
+      <figure class="method-fig panel"><canvas class="chart" id="mLearn" style="height:340px"></canvas><figcaption class="legend-inline" id="mLearnLegend"></figcaption></figure>
+    </div>
+  </section>
+
+  <section class="band" id="trust">
+    <div class="wrap">
+      <div class="sec-intro">
+        <h2 class="h2">Sensors that lie.</h2>
+        <p class="lede">A frozen gauge, a camera that drops out and a rain gauge reading high are planted in the stream. Trust comes from one-step-ahead residuals scaled by the forecast's own spread, flatline detection, a buddy check between rain gauges and a physical step test. A suspect feed is quarantined: its past evidence is forgotten fast.</p>
+      </div>
+      <div class="trust-grid" id="mTrust"></div>
+    </div>
+  </section>
+
+  <section class="band" id="cascade-r">
+    <div class="wrap method-row">
+      <div class="method-text">
+        <h2 class="h2">Is the cascade feeding itself?</h2>
+        <div class="body">
+          <p>Every facility's stress decomposes into a baseline, the hazard's direct push and what each upstream link delivers. Summed over the city:</p>
+          <p class="formula">Cascade-R(t) = Σ stress arriving through links ÷ Σ stress arriving from the hazard</p>
+          <p>Below 1 the city is reacting to the storm. Above 1 more stress is moving through the network than falling from the sky, and stopping the rain no longer stops the crisis: you have to cut links.</p>
+        </div>
+      </div>
+      <figure class="method-fig panel"><canvas class="chart" id="mCR" style="height:340px"></canvas>
+        <figcaption class="legend-inline"><span><i class="box" style="background:rgba(239,107,115,.5)"></i>through dependencies</span><span><i class="box" style="background:rgba(138,147,158,.45)"></i>direct hazard</span><span><i style="border-color:#e4e8ee"></i>Cascade-R (right axis)</span></figcaption></figure>
+    </div>
+  </section>
+
+  <section class="band" id="validation">
+    <div class="wrap">
+      <div class="sec-intro">
+        <h2 class="h2">Scored with the future locked away.</h2>
+        <p class="lede">The truth run uses a different random seed from every member and is never read by the filter. Every forecast at step k sees readings from steps ≤ k only. A warning is issued when P(critical within 24 h) reaches 60%.</p>
+      </div>
+      <div class="lead-wrap"><canvas class="chart" id="mLead" style="height:280px"></canvas>
+        <div class="legend-inline"><span><i class="box" style="background:#79a7e3"></i>hours of warning before the facility went critical</span><span><i class="box" style="background:#e5484d"></i>missed</span></div></div>
+      <dl class="val-strip" id="mVal"></dl>
+    </div>
+  </section>
+
+  <section class="band tight">
+    <div class="wrap limits">
+      <h2 class="h3">Limits, stated plainly</h2>
+      <ul>
+        <li>Skill is measured against a synthetic truth from the same family of models. It shows the pipeline works and is isolated from the future; it is not proof of real-world skill.</li>
+        <li>Indian cities do not publish live drain, feeder or bed telemetry, so city sensor streams are simulated and labelled as such. The geography, facilities and the 2023 storm timing are real.</li>
+        <li>Interventions are scored on modeled effects (scaled link weights and facility loads), not on engineering studies of each action.</li>
+        <li>It is decision support. It proposes; people decide.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<script src="src/js/data/geodata_nagpur.js"></script>
+<script src="src/js/core.js"></script>
+<script src="src/js/engine/scenarios.js"></script>
+<script src="src/js/site/site.js"></script>
+<script src="src/js/site/method.js"></script>
+</body>
+</html>
