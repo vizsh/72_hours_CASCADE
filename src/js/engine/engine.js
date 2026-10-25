@@ -283,6 +283,9 @@
     const nowSd = new Float32Array(K * N);
     const resid = new Float32Array(N);        // EWMA |residual|
     const flat = new Float32Array(N);
+    const buddy = new Float32Array(N);        // EWMA buddy-check score (weather gauges)
+    const wxIdx = F.map((_, i) => i).filter((i) => kinds[i] === 'weather');
+    const median = (a) => { const s = a.slice().sort((x, y) => x - y), n = s.length; return n % 2 ? s[(n - 1) / 2] : 0.5 * (s[n / 2 - 1] + s[n / 2]); };
     const neigh = F.map((_, i) => [i, ...inEdges[i].map((e) => E[e].from)]);
     const logw = new Float64Array(M);
     const Tprev = new Float64Array(N).fill(1);
@@ -383,15 +386,36 @@
           const sig0 = SIGMA[kinds[i]], sp = priorSd[k * N + i];
           const res = Math.abs(y - prior[k * N + i]) / Math.sqrt(sig0 * sig0 + sp * sp);
           resid[i] = k ? 0.85 * resid[i] + 0.15 * res : res;
+          let jump = false;
           if (k >= 1) {
             const yp = obs[(k - 1) * N + i];
             const dObs = Number.isNaN(yp) ? 1 : Math.abs(y - yp);
             const dPri = Math.abs(prior[k * N + i] - prior[(k - 1) * N + i]);
             flat[i] = dObs < 1e-6 && dPri > 0.004 ? flat[i] + 1 : Math.max(0, flat[i] - 0.5);
+            // Step test: a facility cannot move faster than its own response rate allows
+            // in one step (plus 5 sigma of reading noise on the difference). A larger jump is a spoofed or broken reading.
+            if (!Number.isNaN(yp)) {
+              const [up, dn] = DYN[kinds[i]];
+              jump = Math.abs(y - yp) > (y > yp ? up * (1 - yp) : dn * yp) + 5 * sig0;
+            }
           }
           let target = Math.exp(-Math.max(0, resid[i] - 1.6) / 1.1);
           if (flat[i] >= 4) target *= 0.25;
+          // Buddy check (standard gauge QC): a rain gauge whose anomaly against the other
+          // gauges differs from the spatial difference the ensemble expects is suspect,
+          // even when it sits inside the forecast spread.
+          if (kinds[i] === 'weather' && wxIdx.length >= 4) {
+            const ys = [], ps = [];
+            for (const j of wxIdx) if (j !== i && !Number.isNaN(obs[k * N + j])) { ys.push(obs[k * N + j]); ps.push(prior[k * N + j]); }
+            if (ys.length >= 3) {
+              const dObs = y - median(ys), dPri = prior[k * N + i] - median(ps);
+              const rb = Math.abs(dObs - dPri) / Math.sqrt(2 * sig0 * sig0 + 0.08 * 0.08);
+              buddy[i] = k ? 0.6 * buddy[i] + 0.4 * rb : rb;
+              target *= Math.exp(-Math.max(0, buddy[i] - 1.6) / 0.7);
+            }
+          }
           tr = tr + (target - tr) * 0.25;
+          if (jump) tr = Math.min(tr, 0.3);
         }
         trust[k * N + i] = clamp(tr, 0.03, 0.99);
       }
@@ -534,15 +558,16 @@
     }
     function meanAt(k, i, w) { let mu = 0; for (let m = 0; m < M; m++) mu += w[m] * R(m, k, i); return mu; }
 
-    // Weighted mean of each member's exogenous forcing for facility i at step k.
-    function forcingEstimate(k, i) {
+    // Weighted mean of each member's exogenous forcing for facility i at step kAt, using
+    // the weights (evidence) available at step k. kAt > k is the forecast forcing.
+    function forcingEstimate(k, i, kAt = k) {
       const w = wAt(k, i);
       const base = F[i].p.base;
       let acc = 0, rainAcc = 0;
       for (let m = 0; m < M; m++) {
         if (w[m] < 1e-4) continue;
-        acc += w[m] * (forc[(m * K + k) * N + i] - base - members[m].baseOff[i]);
-        rainAcc += w[m] * rainAt(members[m], i, k * DT);
+        acc += w[m] * (forc[(m * K + kAt) * N + i] - base - members[m].baseOff[i]);
+        rainAcc += w[m] * rainAt(members[m], i, kAt * DT);
       }
       return { forcing: acc, rain: rainAcc };
     }
@@ -746,7 +771,7 @@
         if (kinds[i] !== 'drainage' && kinds[i] !== 'traffic') continue;
         for (let k = 0; k < K; k++) if (truth[k * N + i] >= 0.62) {
           const kr = Math.min(K - 1, k + 1 + Math.floor(rand() * 4));
-          if (rand() < 0.7) alerts.push({ k: kr, t: kr * DT, i, sev: 'report', kind: 'report', title: 'Citizen report', text: reportText(i), conf: verify(kr, i), tr: trust[kr * N + i] });
+          if (rand() < 0.7) alerts.push({ k: kr, t: kr * DT, i, sev: 'report', kind: 'report', title: 'Citizen report', text: reportText(i), conf: verify(kr, i, HIGH), tr: trust[kr * N + i] });
           break;
         }
       }
@@ -754,15 +779,17 @@
       for (const fr of planted) {
         const i = idx[fr.near], kr = kOf(fr.t);
         if (i == null) continue;
-        alerts.push({ k: kr, t: fr.t, i, sev: 'report', kind: 'report', title: 'Citizen report', text: fr.text, conf: verify(kr, i), tr: trust[kr * N + i], planted: true });
+        alerts.push({ k: kr, t: fr.t, i, sev: 'report', kind: 'report', title: 'Citizen report', text: fr.text, conf: verify(kr, i, fr.claim === 'critical' ? CRIT : HIGH), tr: trust[kr * N + i], planted: true, bot: !!fr.bot });
       }
       alerts.sort((a, b) => a.k - b.k);
     }
     // Corroboration of a citizen report against the system's own estimate at that place.
     // The analysis already discounts a failed local sensor, so it is the right referee.
-    function verify(k, i) {
+    // A report is scored against the severity it claims: "water over the road" needs the
+    // place to be near HIGH RISK, "the bridge collapsed" needs it near CRITICAL.
+    function verify(k, i, level = HIGH) {
       const r = now[k * N + i];
-      return clamp(sigmoid((r - 0.45) / 0.09) * 0.95 + 0.02, 0.02, 0.98);
+      return clamp(sigmoid((r - (level - 0.1)) / 0.09) * 0.95 + 0.02, 0.02, 0.98);
     }
     function critText(i) {
       return { drainage: 'Channel over capacity, roadway overtopping likely', pump: 'Station at capacity, inflow exceeding pump rate', traffic: 'Gridlock, lanes closed or impassable', power: 'Substation at risk of forced outage', hospital: 'Capacity critical, diversion likely', ems: 'Response times beyond target, units exhausted', telecom: 'Sites off air, batteries exhausted' }[kinds[i]];
@@ -876,7 +903,7 @@
     return {
       geo, scen, t0, F, E, N, M, K, DT, HOURS, idx, kinds, inEdges, outEdges,
       FAULTS: FAULTS_, members, traj, truth, obs, now, nowSd, trust, prior, ESS,
-      kOf, stateAt, forecast, project, explain, diurnal: trafficDiurnal, thr, edgesAt, edgePosterior, inbound, cascade, discover, alerts,
+      kOf, stateAt, forecast, project, explain, forcingEstimate, diurnal: trafficDiurnal, thr, edgesAt, edgePosterior, inbound, cascade, discover, alerts,
       validation, cityAt, radarParams, rainField, simulate, drawParams, R, wAt, g,
       truthParams: truthP,
     };

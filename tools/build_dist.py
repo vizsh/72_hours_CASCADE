@@ -42,7 +42,14 @@ def main():
 
     scripts = block(html, "SCRIPTS")
     local = re.findall(r'<script src="((?:config\.js|src/js/[^"]+))"></script>', scripts.group(1))
-    js = "\n;\n".join(read(src) for src in local).replace("</script", "<\\/script")
+    # index.html loads one city's geodata at runtime (document.write); the bundle carries
+    # every city and picks one from ?city= the same way.
+    cities = sorted(os.path.relpath(p, ROOT).replace(os.sep, "/") for p in glob.glob(os.path.join(ROOT, "src", "js", "data", "geodata*.js")))
+    pick = ("window.TWIN_CITY = (function () { var c = (new URLSearchParams(location.search).get('city') || 'nagpur').toLowerCase();"
+            " return /^[a-z-]+$/.test(c) ? c : 'nagpur'; })();")
+    first = [s for s in local if s == "config.js"]
+    rest = [s for s in local if s != "config.js"]
+    js = "\n;\n".join([read(s) for s in first] + [pick] + [read(s) for s in cities] + [read(s) for s in rest]).replace("</script", "<\\/script")
     js = 'window.TWIN_CONFIG = { tileBundles: "data/bundles/index.json" };\n' + js
     scripts_out = f'<script src="{MAPLIBRE}"></script>\n<script>\n{js}\n</script>\n'
 

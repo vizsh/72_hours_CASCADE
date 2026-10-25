@@ -179,7 +179,7 @@
 
   function createPlan(app) {
     const el = document.getElementById('drawerPlan');
-    let chosen = new Set(), budget = 5, result = null, busy = false, singles = {};
+    let chosen = new Set(), budget = 5, result = null, busy = false, singles = {}, dl = null;
     el.innerHTML = `
       <div class="drawer-head"><h3><b>Interventions</b>Constrained counterfactuals</h3><button class="icon-btn" data-close aria-label="Close">${I.UI.close}</button></div>
       <div class="drawer-body scroll" id="planBody"></div>`;
@@ -188,13 +188,13 @@
     let planner = null, kDecision = -1;
 
     function ensure() {
-      if (!planner || planner._e !== app.engine) { planner = root.TWIN.interventions.create(app.engine); planner._e = app.engine; singles = {}; result = null; }
+      if (!planner || planner._e !== app.engine) { planner = root.TWIN.interventions.create(app.engine); planner._e = app.engine; singles = {}; result = null; dl = null; }
     }
     function render(force) {
       if (el.hidden) return;
       ensure();
       const v = app.view;
-      if (kDecision !== v.kInfo) { kDecision = v.kInfo; singles = {}; result = null; }
+      if (kDecision !== v.kInfo) { kDecision = v.kInfo; singles = {}; result = null; dl = null; }
       if (!force && body._k === v.kInfo && !body._dirty) return;
       body._k = v.kInfo; body._dirty = false;
       const used = [...chosen].reduce((s, id) => s + planner.CATALOG.find((a) => a.id === id).cost, 0);
@@ -227,7 +227,7 @@
         busy = true; body.querySelector('#recBtn').textContent = 'Searching…';
         setTimeout(() => { chosen = new Set(planner.recommend(app.view.kInfo, budget)); busy = false; evaluate(); }, 30);
       });
-      body.querySelector('#clearBtn').addEventListener('click', () => { chosen.clear(); result = null; body._dirty = true; render(true); });
+      body.querySelector('#clearBtn').addEventListener('click', () => { chosen.clear(); result = null; dl = null; app.setGhost(null); body._dirty = true; render(true); });
       drawOutcome();
       // Fill per-action estimates lazily so the drawer opens instantly.
       const pending = planner.CATALOG.filter((a) => !singles[a.id]);
@@ -238,7 +238,39 @@
     }
     function evaluate() {
       result = chosen.size ? planner.evaluate(app.view.kInfo, [...chosen]) : null;
+      dl = null;
+      if (app.ghost) app.setGhost(null);
       body._dirty = true; render(true);
+      // Decision deadline: re-run the plan with crews starting later, after first paint.
+      if (result) {
+        const ids = [...chosen], k = app.view.kInfo;
+        setTimeout(() => {
+          if (app.view.kInfo !== k || ids.join() !== [...chosen].join()) return;
+          dl = planner.deadline(k, ids, 24, 2);
+          body._dirty = true; render(true);
+        }, 50);
+      }
+    }
+    function toggleGhost() {
+      if (app.ghost) { app.setGhost(null); body._dirty = true; render(true); return; }
+      const k = app.view.kInfo, ids = [...chosen];
+      const tr = planner.trajectory(k, ids, 24);
+      const labels = ids.map((id) => planner.CATALOG.find((a) => a.id === id).label);
+      app.setGhost({ ...tr, id: k + ':' + ids.join(','), labels, reduction: result.reduction });
+      body._dirty = true; render(true);
+    }
+    function deadlineSvg(d) {
+      const W = 360, H = 74, pad = { l: 26, r: 8, t: 8, b: 16 };
+      const maxH = d.pts[d.pts.length - 1].h || 1, top = Math.max(0.05, d.r0 * 1.1, ...d.pts.map((p) => p.reduction));
+      const X = (h) => pad.l + (h / maxH) * (W - pad.l - pad.r), Y = (r) => pad.t + (1 - Math.max(0, r) / top) * (H - pad.t - pad.b);
+      const path = d.pts.map((p, n) => `${n ? 'L' : 'M'}${X(p.h).toFixed(1)},${Y(p.reduction).toFixed(1)}`).join('');
+      const area = `${path}L${X(d.pts[d.pts.length - 1].h)},${Y(0)}L${X(0)},${Y(0)}Z`;
+      const ab = d.actBy != null ? `<line x1="${X(d.actBy)}" x2="${X(d.actBy)}" y1="${pad.t}" y2="${Y(0)}" stroke="var(--watch)" stroke-dasharray="3 3"/><text x="${X(d.actBy) + 4}" y="${pad.t + 8}" font-size="9" fill="var(--watch)" font-family="var(--font-mono)">act by +${d.actBy} h</text>` : '';
+      const ticks = d.pts.filter((p) => p.h % 6 === 0).map((p) => `<text x="${X(p.h)}" y="${H - 3}" font-size="8.5" fill="var(--text-3)" text-anchor="middle" font-family="var(--font-mono)">+${p.h}h</text>`).join('');
+      return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Benefit versus start delay">
+        <line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--line-strong)"/>
+        <text x="2" y="${Y(d.r0) + 3}" font-size="8.5" fill="var(--text-3)" font-family="var(--font-mono)">${Math.round(d.r0 * 100)}%</text>
+        <path d="${area}" fill="var(--accent-dim)"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="1.6"/>${ab}${ticks}</svg>`;
     }
     const fmtPct = (x) => (x >= 0 ? '−' : '+') + Math.abs(Math.round(x * 100)) + '%';
     function drawOutcome() {
@@ -255,9 +287,14 @@
           <div><div class="k">P(hospital critical)</div><div class="v">${Math.round(r.with.hospCrit * 100)}%</div><div class="d ${r.with.hospCrit <= r.base.hospCrit ? 'good' : 'bad'}">was ${Math.round(r.base.hospCrit * 100)}%</div></div>
         </div>
         ${r.sideEffects.length ? `<div class="act-side" style="margin-top:8px">Side effects: ${r.sideEffects.map((s) => `${esc(F[s.i].name)} peak +${Math.round(s.delta * 100)} pts`).join(' · ')}</div>` : ''}
+        <div class="sec-head" style="margin:12px 0 4px"><span class="sec-title">Decision deadline · benefit if crews start later</span></div>
+        ${dl ? (dl.pts.length > 1 && dl.r0 > 0.02 ? `${deadlineSvg(dl)}<div class="dl-note">${dl.actBy != null ? `Start by <b>${fmtT(app.view.tInfo + dl.actBy)}</b> to keep 80% of the benefit${dl.half != null ? `; by ${fmtT(app.view.tInfo + dl.half)} it is worth less than half` : ''}.` : 'Most of the benefit is lost with any delay: act now.'}</div>` : '<div class="dl-note">No measurable benefit to time.</div>') : '<div class="dl-note faint">Re-simulating with delayed starts…</div>'}
+        <button class="btn ${app.ghost ? 'on' : ''}" id="ghostBtn" aria-pressed="${!!app.ghost}" style="margin-top:10px">${I.UI.orbit} ${app.ghost ? 'Exit ghost city' : 'Ghost city: show the twin with this plan'}</button>
       </div>`;
+      out.querySelector('#ghostBtn').addEventListener('click', toggleGhost);
     }
-    return { render };
+    const current = () => (result && chosen.size ? { k: kDecision, ids: [...chosen], result, deadline: dl, catalog: planner.CATALOG } : null);
+    return { render, current };
   }
 
   function createValid(app) {

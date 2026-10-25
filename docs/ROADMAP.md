@@ -46,3 +46,18 @@ This repository started as an import of [`shreyascoder2006/72_UI`](https://githu
 8. **Communications.** Situation report generated from the engine state, CAP 1.2 XML export, and citizen alert previews in English, Hindi and Marathi.
 9. **Live weather.** Open-Meteo's GFS ensemble for the selected city drives the hazard in live mode (dev server; the single-file CSP build stays offline).
 10. **Population massing.** An extruded H3 population layer, so Indian cities with sparse building footprints still read in 3D.
+
+## Status · 25 Oct 2026
+
+| # | Item | Status |
+|---|---|---|
+| 1 | Multi-city twin with real Nagpur | Built. `?city=nagpur` (default) and `?city=raleigh`; per-city time zone, camera, faults and false reports. |
+| 2 | Generic decision layer | Built. The catalogue is generated from the dependency graph; Raleigh keeps its hand-written one. |
+| 3 | All-hazard engine with telecom | Built. Monsoon 2023 reconstruction, grid fault + telecom blackout, chlorine plume, immersion-day crowds + storm. |
+| 4 | People exposed and Cascade-R | Built. Cascade-R is a nowcast and, when scrubbing ahead, a forecast. The crisis registry shows when it is forecast to cross 1. |
+| 5 | Crisis registry | Built. IDs, hazard-family typing, stages, map footprints, crisis × system matrix, coupling and contention links. |
+| 6 | Intervention upgrades | Decision deadlines and the ghost city are built. Resources are a single crew budget; separate pools (pumps, generators, ambulances) are not built yet. |
+| 7 | Red-team console | Built. Five attacks scored against a clean control. The engine gained a rain-gauge buddy check, a physical step test and severity-aware report corroboration. None of these changed replay skill in any city × scenario (`tools/test/qc_regress.js`). |
+| 8 | Communications | Built. SITREP, CAP 1.2 (one info block per language, footprint polygon) and SMS with GSM-7 / UCS-2 segment counts. |
+| 9 | Live weather | Built. Runs in the browser against Open-Meteo (CORS), so it works from any static server. The single-file CSP build (`connect-src 'self'`) keeps it offline by design. |
+| 10 | Population massing | Built as an extruded 450 m square grid scaled to census totals (not H3). |

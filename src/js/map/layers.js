@@ -77,7 +77,7 @@
 
     const add = (id, src) => map.addSource(id, { type: 'geojson', data: src, tolerance: 0.2 });
     add('drn', drn); add('basin', basins); add('cor', cor); add('sub', subs); add('cov', cov); add('hsp', hsp);
-    add('flood', fc(floods)); add('flows', fc([])); add('arcs', fc([])); add('districts', districts); add('sel', fc([])); add('hl', fc([])); add('pop', pop);
+    add('flood', fc(floods)); add('flows', fc([])); add('arcs', fc([])); add('districts', districts); add('sel', fc([])); add('hl', fc([])); add('pop', pop); add('crises', fc([])); add('crisis-pt', fc([]));
 
     // ── Images ──
     for (const [k, hex] of Object.entries(FLOW_HEX)) map.addImage('chev-' + k, chevron(hex), { pixelRatio: 2 });
@@ -93,6 +93,7 @@
         'fill-extrusion-height': ['*', 420, ['^', ['/', ['get', 'n'], popMax], 0.75]],
         'fill-extrusion-base': 0, 'fill-extrusion-opacity': 0.62, 'fill-extrusion-color': '#3b3552',
       } });
+    L({ id: 'crisis-fill', type: 'fill', source: 'crises', paint: { 'fill-color': ['get', 'col'], 'fill-opacity': ['case', ['==', ['get', 'focus'], 1], 0.09, 0.04] } });
     L({ id: 'cov-fill', type: 'fill', source: 'cov', paint: { 'fill-color': '#b39af0', 'fill-opacity': 0.06 } });
     L({ id: 'cov-line', type: 'line', source: 'cov', paint: { 'line-color': '#7d6bb0', 'line-width': 0.8, 'line-opacity': 0.35, 'line-dasharray': [3, 2] } });
     L({ id: 'outage', type: 'fill', source: 'cov', paint: { 'fill-pattern': 'hatch', 'fill-opacity': 0 } });
@@ -144,6 +145,12 @@
       paint: { 'line-color': '#e5484d', 'line-width': 1, 'line-opacity': 0.4, 'line-dasharray': [0.6, 2.2] } });
     map.addLayer({ id: 'sel-ring', type: 'circle', source: 'sel',
       paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 10, 17, 34], 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.4, 'circle-stroke-opacity': 0.85, 'circle-pitch-alignment': 'map' } });
+    // Crisis footprints (shown while the crisis registry is open)
+    map.addLayer({ id: 'crisis-line', type: 'line', source: 'crises', layout: { 'line-join': 'round' },
+      paint: { 'line-color': ['get', 'col'], 'line-width': ['case', ['==', ['get', 'focus'], 1], 2.6, 1.4], 'line-opacity': 0.9, 'line-dasharray': [3, 2] } });
+    map.addLayer({ id: 'crisis-label', type: 'symbol', source: 'crisis-pt',
+      layout: { 'text-field': ['concat', ['get', 'id'], '\n', ['get', 'type']], 'text-font': opts.labelFont || ['Noto Sans Bold'], 'text-size': 11, 'text-letter-spacing': 0.06, 'text-allow-overlap': true, 'text-line-height': 1.25 },
+      paint: { 'text-color': ['get', 'col'], 'text-halo-color': 'rgba(8,10,12,0.92)', 'text-halo-width': 1.4 } });
     map.addLayer({ id: 'district-label', type: 'symbol', source: 'districts', maxzoom: 15.2,
       layout: { 'text-field': ['get', 'name'], 'text-font': opts.labelFont || ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 11, 9, 15, 11.5], 'text-letter-spacing': 0.36, 'text-allow-overlap': false },
       paint: { 'text-color': 'rgba(196,206,220,0.4)', 'text-halo-color': 'rgba(8,10,12,0.75)', 'text-halo-width': 0.8, 'text-halo-blur': 0.6 } });
@@ -257,8 +264,21 @@
       return { high, crit, total };
     }
 
+    // Crisis footprints: [{ ring, id, type, col, focus, anchor }]
+    function setCrises(list) {
+      map.getSource('crises').setData(fc(list.map((c) => poly(c.ring, { id: c.id, type: c.type, col: c.col, focus: c.focus ? 1 : 0 }))));
+      map.getSource('crisis-pt').setData(fc(list.map((c) => point(c.anchor, { id: c.id, type: c.type, col: c.col }))));
+    }
+
+    // Residents whose nearest exposed facility is in the set (a crisis footprint).
+    function peopleFor(set) {
+      let n = 0;
+      popCells.forEach((c, q) => { const l = popLink[q]; if (l.i !== PAD && set.has(l.i)) n += c[2]; });
+      return n;
+    }
+
     update(R0, { diurnal: 1, flows: [], arcs: [] });
-    return { update, setGroup, select, highlight, tick, peopleAtRisk, FLOW_HEX };
+    return { update, setGroup, select, highlight, tick, peopleAtRisk, peopleFor, setCrises, FLOW_HEX };
   }
 
   function chevron(hex) {

@@ -5,16 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>CASCADE 72 · Urban Digital Twin</title>
 <meta name="description" content="Urban digital twin of Nagpur (and Raleigh as an unseen-city test): real OpenStreetMap city model with a cascade-intelligence layer that predicts how floods, grid faults, toxic releases and crowds propagate through drainage, roads, power, telecom and hospitals up to 72 hours ahead.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Crect width='26' height='26' rx='5' fill='%23090b0e'/%3E%3Cpath d='M13 2.5 22 7.7v10.6L13 23.5 4 18.3V7.7z' fill='none' stroke='%2379a7e3' stroke-width='1.6'/%3E%3Cpath d='M8.5 16.5v-5l2.7-1.5v6.5M12.8 16.5V8.8l2.7-1.5v9.2' fill='none' stroke='%23e4e8ee' stroke-width='1.6'/%3E%3C/svg%3E">
 <!--BUILD:HEAD-->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500&display=swap">
 <link rel="stylesheet" href="src/vendor/maplibre-gl-4.7.1.css">
 <link rel="stylesheet" href="src/css/tokens.css">
 <link rel="stylesheet" href="src/css/base.css">
 <link rel="stylesheet" href="src/css/layout.css">
 <link rel="stylesheet" href="src/css/panels.css">
 <link rel="stylesheet" href="src/css/map.css">
+<link rel="stylesheet" href="src/css/ops.css">
 <!--/BUILD:HEAD-->
 </head>
 <body>
@@ -48,6 +50,7 @@
     <div class="top-right">
       <label class="select city-sel"><select id="citySel" class="glass" aria-label="City"></select><span id="citySelIco"></span></label>
       <div class="sys" id="sys"><span class="sys-led"></span><span class="sys-text">Starting…</span></div>
+      <button class="city-chip people-chip cr-chip" id="crChip" type="button" aria-label="Cascade-R"></button>
       <div class="city-chip people-chip" id="peopleChip"></div>
       <div class="city-chip" id="cityChip"></div>
     </div>
@@ -61,6 +64,10 @@
       <button class="btn glass" id="btnGraph" aria-pressed="false"></button>
       <button class="btn glass" id="btnPlan" aria-pressed="false"></button>
       <button class="btn glass" id="btnValid" aria-pressed="false"></button>
+      <span class="tools-sep" aria-hidden="true"></span>
+      <button class="btn glass" id="btnCrises" aria-pressed="false"></button>
+      <button class="btn glass" id="btnRed" aria-pressed="false"></button>
+      <button class="btn glass" id="btnComms" aria-pressed="false"></button>
       <label class="select"><select id="scenario" class="glass" aria-label="Scenario"></select><span id="scenIco"></span></label>
     </div>
     <div class="cascade-strip glass" id="strip" aria-label="Cascade stages"></div>
@@ -80,6 +87,10 @@
     <section class="drawer graph glass" id="drawerGraph" hidden aria-label="Dependency graph"></section>
     <section class="drawer plan glass" id="drawerPlan" hidden aria-label="Interventions"></section>
     <section class="drawer valid glass" id="drawerValid" hidden aria-label="Temporal validation"></section>
+    <section class="drawer crises glass" id="drawerCrises" hidden aria-label="Crisis registry"></section>
+    <section class="drawer red glass" id="drawerRed" hidden aria-label="Red-team console"></section>
+    <section class="drawer comms glass" id="drawerComms" hidden aria-label="Communications"></section>
+    <div class="mode-bar glass" id="modeBar" hidden></div>
   </div>
 
   <aside class="left glass" aria-label="Assets, layers and alerts">
@@ -151,6 +162,10 @@
 <script src="src/js/engine/scenarios.js"></script>
 <script src="src/js/engine/engine.js"></script>
 <script src="src/js/engine/interventions.js"></script>
+<script src="src/js/engine/analytics.js"></script>
+<script src="src/js/engine/comms.js"></script>
+<script src="src/js/engine/redteam.js"></script>
+<script src="src/js/engine/live.js"></script>
 <script src="src/js/map/icons.js"></script>
 <script src="src/js/map/geom.js"></script>
 <script src="src/js/map/style.js"></script>
@@ -164,6 +179,7 @@
 <script src="src/js/ui/inspector.js"></script>
 <script src="src/js/ui/timeline.js"></script>
 <script src="src/js/ui/drawers.js"></script>
+<script src="src/js/ui/ops.js"></script>
 <script src="src/js/ui/app.js"></script>
 <!--/BUILD:SCRIPTS-->
 </body>
