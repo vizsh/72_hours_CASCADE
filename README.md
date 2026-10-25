@@ -1,219 +1,228 @@
-# CASCADE 72 · Urban Digital Twin
+# CASCADE 72 · The 72-hour warning for cities
 
-A 3D digital twin of **Nagpur, Maharashtra** that predicts how an urban crisis cascades through
-drainage, roads, power, telecom, emergency response and hospitals up to 72 hours ahead. It
-identifies the crises taking shape, explains every forecast, plans constrained interventions,
-withstands attacks on its own data, and issues the warnings. **Raleigh, NC** ships as the
-unseen-city test: the same engine runs on it unchanged. Around the operations room sits a
-multi-page website: a live replay of the 2023 cloudburst on the home page, the learned knowledge
-graph, an intervention lab, a scenario library, a live ensemble forecast, a public "My area" view
-and an interactive method page. Every number on it is computed in the browser by the same engine.
+**A digital twin of Nagpur that forecasts how an urban crisis cascades through drains, roads,
+power, telecom, emergency response and hospitals up to 72 hours ahead.** It learns the
+dependencies nobody wrote down, explains every prediction, tests which actions break the chain
+before the window closes, survives attacks on its own data, and writes the warnings in English,
+Hindi and Marathi. Raleigh, North Carolina ships as the unseen-city test.
 
-Built for CASCADE '26 (IIIT Nagpur), Theme 2 · Problem 2, *The 72-Hour Warning*. The city model
-is real: OpenStreetMap buildings, streets, rivers, substations, hospitals and junctions. The
-cascade intelligence is an analytical layer on top of it, the way production CIM and digital-twin
-platforms are structured.
+Built for **CASCADE '26** (IIIT Nagpur, TantraFiesta) · Theme 2 · Problem 2 · *The 72-Hour Warning*.
+Everything runs in the browser: static files, no build step, no server-side compute, offline
+except for live weather.
 
 | Home: the 2023 cloudburst, replayed | Knowledge graph, learned live |
 | --- | --- |
 | ![Home](docs/site-home.jpg) | ![Knowledge graph](docs/site-graph.jpg) |
 | **Intervention lab** | **My area, for residents** |
 | ![Intervention lab](docs/site-lab.jpg) | ![My area](docs/site-my-area.jpg) |
-| **Crisis registry and footprints** | **Red-team console** |
+| **Operations room: crisis registry and footprints** | **Operations room: red-team console** |
 | ![Crisis registry](docs/crisis-registry.jpg) | ![Red team](docs/red-team.jpg) |
 | **Decision deadline and ghost city** | **Public alerts in English, Hindi and Marathi** |
 | ![Ghost city](docs/ghost-city.jpg) | ![Public alerts](docs/public-alerts.jpg) |
 
-## Run it
+---
+
+## Quick start
 
 ```bash
-python3 tools/serve.py           # http://localhost:8000
-# open http://localhost:8000                       the website
-# open http://localhost:8000/twin.html             the operations room (Nagpur)
-# open http://localhost:8000/twin.html?city=raleigh   the unseen-city test
+git clone https://github.com/vizsh/72_hours_CASCADE.git
+cd 72_hours_CASCADE
+python tools/serve.py            # → http://localhost:8000
 ```
 
-Any static file server works. `tools/serve.py` is the plain Python server plus two development
-conveniences:
-- It sends `Cache-Control: no-cache`, so the browser never mixes fresh and stale scripts.
-- It answers `/sw.js` with a self-removing service worker, which clears out a worker left on
-  `localhost:8000` by another project.
+| Open | What you get |
+| --- | --- |
+| http://localhost:8000 | the website (start here) |
+| http://localhost:8000/twin.html | the operations room, Nagpur |
+| http://localhost:8000/twin.html?scenario=chlorine | a specific scenario |
+| http://localhost:8000/twin.html?city=raleigh | the unseen city |
+| http://localhost:8000/citizen.html?area=Dharampeth | the resident view for one neighbourhood |
 
-If a page ever shows "Could not start the twin", reload once with Ctrl+Shift+R.
+No install is needed beyond Python 3 (for the server). Any static server works. Press **Ctrl K**
+on any website page to jump to a page, a scenario replay or any of Nagpur's 57 facilities.
 
-Everything runs in the browser, offline: tiles, glyphs, the 200-member ensemble and the
-assimilation all ship with the page. The online features are **Live weather** and the **Live**
-page, which fetch the Open-Meteo GFS ensemble (and city search) on demand.
+## At a glance
 
-`python3 tools/build_dist.py` writes `dist/index.html`: the operations room as a single page with all CSS,
-JavaScript and both cities inlined, plus the tiles packed as base64 bundles for hosts that only
-serve text. It runs under a strict Content-Security-Policy.
+| | |
+| --- | --- |
+| **Cities** | Nagpur, Maharashtra (default) · Raleigh, NC (unseen-city test) |
+| **Scenarios** | **Nagpur: 8** (monsoon cloudburst 2023, chlorine release, festival crowds + storm, grid and telecom blackout, tropical rain, flash flood, heat wave, live GFS weather) · **Raleigh: 5** (tropical, flash, heat, blackout, live) |
+| **Nagpur facilities** | **57**: 13 drainage (Nag, Pili and Pohara river gauges, Ambazari and Gorewada lake spillways, Gandhi Sagar pumps), 13 junctions, 9 substations, 5 telecom, 4 EMS (incl. the 112 control room), 6 hospitals (GMC, Mayo, Wockhardt …), 7 weather |
+| **Dependencies** | 102 candidate links in Nagpur (7 planted fakes), learned online; 71 in Raleigh |
+| **People** | 2,935,456 modeled Nagpur residents on 1,790 cells of 450 m |
+| **Forecast** | 200-member ensemble · 145 half-hour steps · localized particle filter with forgetting and tempering |
+| **Monsoon 2023 replay** | warned **18.5 h** before the first facility went critical · median lead **22.5 h** · **85%** of critical events warned · **0** false alarms · Brier skill **+0.81** |
+| **Interfaces** | operations room (3D twin) + 7 website pages + CAP 1.2 / SITREP / SMS outputs |
+
+## Documentation
+
+Start with the overview, then go as deep as you need. Everything in the repository is described
+somewhere below.
+
+| # | Document | What it covers |
+| --- | --- | --- |
+| 1 | [Overview and approach](docs/01-overview.md) | the problem, users, design principles, a requirement-by-requirement map of the brief to features, code and UI |
+| 2 | [Architecture](docs/02-architecture.md) | stack, runtime architecture, the worker RPC, a file-by-file repository map, the geodata model, rendering, performance |
+| 3 | [The cascade engine](docs/03-engine.md) | simulation equations and constants, ensemble, observations and faults, particle filter, sensor trust, ARD learning, forecasts, explanations, alerts, corroboration, city state, validation |
+| 4 | [Scenarios](docs/04-scenarios.md) | **all 8 scenarios** with truth and prior parameters, what cascades, highlights, planted faults and reports, how to add one |
+| 5 | [The operations room](docs/05-operations-room.md) | every control of `twin.html`: top bar, layers, assets, alerts, map, inspector, timeline, six drawers, URL parameters, keyboard |
+| 6 | [The operations layer](docs/06-operations-layer.md) | Cascade-R, the crisis registry algorithm, interventions (catalogue generator, evaluation, deadlines, ghost city), red team, SITREP / CAP / SMS, people at risk |
+| 7 | [The website](docs/07-website.md) | all eight pages in detail: home hero and poke, knowledge graph, lab, scenarios, live, My area, method |
+| 8 | [User flows](docs/08-user-flows.md) | eleven step-by-step journeys: demo, duty officer, planner, analyst, comms, red team, resident, meteorologist, comparisons, learning, adding a city |
+| 9 | [Development](docs/09-development.md) | running, configuration, the data pipeline, the spec format, adding a city, single-file build, tests, conventions, troubleshooting |
+| 10 | [Glossary, FAQ and limits](docs/10-glossary-faq.md) | every term, common questions, honest limits, credits |
+| R | [Reference: Nagpur](docs/reference/nagpur.md) | *generated*: every facility (coordinates, sensor, tier, parameters, population), all 102 links (mechanism, lag, route, hidden weight), districts, population grid, faults, false reports |
+| R | [Reference: Raleigh](docs/reference/raleigh.md) | *generated*: the same for Raleigh |
+| R | [Reference: results](docs/reference/results.md) | *generated*: scorecard and cascade shape for every city × scenario; crises at "now" and at the peak; action catalogues with single-action gains; recommended plans, deadlines and side effects; red-team outcomes per attack |
+| R | [Reference: messages](docs/reference/messages.md) | *generated*: per-city language config, CAP vocabulary, every message template in English, Hindi, Marathi and Spanish, and a real SMS set, CAP XML and SITREP |
+| — | [Roadmap and status](docs/ROADMAP.md) | the original gap analysis and what was built |
+
+The reference documents are produced by `node tools/gen_docs.js` from the code and engine runs, so
+their numbers always match the repository.
+
+## What it does
+
+**Forecasting**
+- 72 h forecasts with NORMAL / WATCH / HIGH RISK / CRITICAL per facility and city-wide, from a
+  200-member ensemble assimilated every 30 minutes.
+- Multi-horizon fan charts (+1 to +48 h) and P(critical within 24 h).
+- Time to critical with p10–p90.
+
+**Learning**
+- No wiring diagram is given. 102 candidate links are confirmed, pruned or left waiting by sparse
+  Bayesian regression (ARD) on the sensor streams.
+- A model-free raw-stream screen checks the structure at system level.
+- Seven planted fakes test the learner.
+
+**Robustness**
+- Sensor trust from residuals, flatline detection, a rain-gauge buddy check and a physical step
+  test.
+- Quarantined feeds are forgotten fast.
+- Citizen reports are scored against the severity they claim.
+
+**Explanation**
+- Every risk splits into baseline, hazard and each upstream link (weight ± sd, lag, mechanism,
+  upstream reading and trust).
+
+**Cascade intelligence**
+- **Cascade-R:** is the cascade feeding itself? Shown now and forecast, with the predicted crossing
+  time.
+- **Crisis registry:** concurrent crises with IDs, hazard type, stage, map footprint, residents,
+  systems, coupling and contention.
+
+**Decisions**
+- An action catalogue generated from each city's graph, tested on identical futures, with a greedy
+  plan under a crew budget.
+- Side effects, decision deadlines ("act by T+47"), and a ghost city that repaints the twin with the
+  plan.
+
+**Adversity**
+- A red-team console with five attacks, each rebuilt on poisoned streams and scored against the
+  clean run.
+
+**Warnings**
+- SITREP, CAP 1.2 (one info block per language, footprint polygon), and SMS in English, Hindi and
+  Marathi with GSM-7 / UCS-2 segment counts.
+
+**Live**
+- Today's 31-member GFS ensemble (Open-Meteo) becomes the hazard prior for the twin.
+
+**Validation**
+- Replays scored against a hidden truth with strict future-data isolation: Brier, skill,
+  reliability, lead time, detection, false alarms.
+
+**Generalisation**
+- Raleigh runs the same code with nothing retuned.
+
+## Scenarios
+
+| ID | Scenario | Cities | What happens |
+| --- | --- | --- | --- |
+| `monsoon2023` | Monsoon cloudburst · 23 Sep 2023 | Nagpur | Reconstruction of the pre-dawn cloudburst (~106 mm in 4 h); Ambazari Lake overflows into the Nag; floods, gridlock, EMS delays, hospital load |
+| `chlorine` | Chlorine release at a water treatment plant | Nagpur | Gaussian plume from Seminary Hills WTP on a 330° wind; closures load ambulance routes; exposure surge at hospitals |
+| `festival` | Immersion-day crowds meet an evening storm | Nagpur | Processions at Gandhi Sagar and Futala plus a thunderstorm: a crowd crisis and a flood crisis at once |
+| `blackout` | Grid fault and telecom blackout | Nagpur, Raleigh | Substation cluster drops; mobile sites drain their batteries; dispatch and hospitals follow |
+| `tropical` | Tropical remnant rainfall | Nagpur, Raleigh | Two rain bands on saturated soils |
+| `flash` | Convective flash flood | Nagpur, Raleigh | Training thunderstorms stall over one basin |
+| `heat` | Heat wave and grid stress | Nagpur, Raleigh | Three-day heat dome with a derecho on day two |
+| `live` | Live weather · GFS ensemble | Nagpur, Raleigh | Today's real forecast, 31 members mapped onto 200 particles |
+
+Parameters and results: [Scenarios](docs/04-scenarios.md) · [results](docs/reference/results.md).
+
+## Replay validation
+
+Warning rule: P(critical within 24 h) ≥ 60%. Synthetic ground truth: these numbers show the
+pipeline works and is isolated from the future; they are not proof of real-world skill.
+
+| City | Scenario | Median lead | Detection | False alarms | Brier | Skill |
+| --- | --- | --- | --- | --- | --- | --- |
+| Nagpur | Monsoon cloudburst 2023 | 22.5 h | 85% | 0% | 0.040 | +0.81 |
+| Nagpur | Tropical rainfall | 20.5 h | 96% | 13% | 0.060 | +0.74 |
+| Nagpur | Flash flood | 16.0 h | 75% | 0% | 0.079 | +0.67 |
+| Nagpur | Heat wave | 18.5 h | 94% | 0% | 0.023 | +0.80 |
+| Nagpur | Grid and telecom blackout | 21.5 h | 50% | 0% | 0.017 | +0.68 |
+| Raleigh | Tropical rainfall | 19.0 h | 82% | 25% | 0.076 | +0.59 |
+| Raleigh | Flash flood | 16.5 h | 77% | 5% | 0.070 | +0.63 |
+| Raleigh | Heat wave | 23.0 h | 77% | 0% | 0.019 | +0.81 |
+| Raleigh | Grid and telecom blackout | 16.5 h | 88% | 11% | 0.017 | +0.77 |
+
+The chlorine and festival scenarios have too few critical events for a stable score. Full tables:
+[reference/results.md](docs/reference/results.md).
 
 ## The website
 
-Static pages with no build step, in the same visual language as the operations room. The engine
-runs in a Web Worker pool (`src/js/site/twin-worker.js`), so pages stay responsive while the
-ensemble assimilates. Scenario summaries are cached in the browser after the first visit.
-Press **Ctrl K** (or `/`) on any page to jump to a page, a scenario replay or any of Nagpur's
-57 facilities.
-
 | Page | What it does |
 | --- | --- |
-| `index.html` · Overview | The 23 Sep 2023 cloudburst replayed as a city of light: population columns warm with risk and stress travels between facilities as pulses. **Click any facility to send a pulse through everything that depends on it.** It shows the predicted course the twin issued 18.5 h ahead, a conventional warning beside it, and six live capability demos: crises, Cascade-R, learned links, ghost city, red team and multilingual SMS. A scenario strip and a validation scorecard follow. |
-| `graph.html` · Knowledge graph | The 102 candidate links as a physical graph: drag, zoom, switch between force, map and system layouts, scrub time or press **Watch it learn**. Click a facility for its live drivers and links. **Reveal planted fakes** shows whether the seven fake links fooled it. |
-| `lab.html` · Intervention lab | Pick actions under a crew budget and a decision time. You get the outcome against doing nothing on identical futures, per-system impact, side effects and a decision-deadline curve. One click opens the plan as a ghost city in the operations room. |
-| `scenarios.html` · Scenarios | Hazard × system reach matrix (when each system first hit HIGH) and a dossier per scenario with its curve, Cascade-R, lead time and detection. Raleigh is shown as the unseen city. |
-| `live.html` · Live | Today's GFS ensemble for any city (Open-Meteo search): 31 rain futures, the chance of heavy rain, temperature and wind, with a hand-off to the live twin for Nagpur and Raleigh. |
-| `citizen.html` · My area | A resident's view: pick a neighbourhood on the dot map or by name. You get a plain-language verdict with time and probability, a 36-hour risk ribbon per system, what to do in English, Hindi or Marathi, the nearest hospital's outlook and roads to avoid. |
-| `method.html` · Method | Interactive explainers on live engine output: a particle-filter explorer (200 futures reweighted as you scrub, truth on demand), link learning with ±1 sd, sensor trust under planted faults, the Cascade-R decomposition, and warning lead times. |
-| `twin.html` · Operations room | The full 3D twin. It accepts `?scenario=`, `?city=`, `?select=<facility id>` and `?plan=<action ids>&k=<step>` (opens a lab plan as a ghost city). |
+| [`index.html`](index.html) | The 2023 cloudburst as a city of light. **Click any facility to send a pulse through its dependencies.** It shows the course predicted 18.5 h ahead, six live capability demos, scenarios and the scorecard. |
+| [`graph.html`](graph.html) | The learned dependency graph: drag, zoom, three layouts, **Watch it learn**, reveal planted fakes, live drivers per facility |
+| [`lab.html`](lab.html) | Plan actions under a crew budget: outcome vs doing nothing, per-system impact, side effects, decision deadline, hand-off to the ghost city |
+| [`scenarios.html`](scenarios.html) | Hazard × system reach matrix and a dossier per scenario; Raleigh as the unseen city |
+| [`live.html`](live.html) | Today's 31-member GFS ensemble for any city; hand-off to the live twin |
+| [`citizen.html`](citizen.html) | "Is my area at risk?": verdict, 36 h ribbon, what to do in three languages, nearest hospital, roads to avoid |
+| [`method.html`](method.html) | Interactive explainers: particle filter, link learning, sensor trust, Cascade-R, lead times |
+| [`twin.html`](twin.html) | The operations room |
 
-## Where to look in the operations room
-
-| Control | What it shows |
-| --- | --- |
-| Top bar | City state, **people at risk** (residents whose nearest facility is HIGH RISK or worse) and **Cascade-R**. Cascade-R turns into a forecast (`~`) when you scrub ahead. |
-| Timeline | Drag to scrub through 72 h. In Live mode, right of NOW is forecast. **Historical** replays with strict future-data isolation. **Trigger cascade** streams the sensors from T+0. |
-| Dependency graph | Links learned online from the streams: confirmed, pruned or awaiting evidence, numbered in propagation order. |
-| Interventions | Constrained counterfactuals with crew costs and side effects. Shows a **decision deadline** curve and a **ghost-city** toggle that repaints the twin with the plan applied. |
-| Validation | Brier score, reliability, detection, false alarms and lead time against the hidden truth. |
-| **Crises** | Concurrent crises, each with an ID, type, stage, footprint on the map, people exposed and systems reached; a crisis × system matrix; coupling and contention between crises. |
-| **Red team** | Attacks the twin's own inputs live, then scores how it coped against a clean control run. |
-| **Comms** | SITREP, a CAP 1.2 alert, and public SMS / cell-broadcast text, all generated from the twin at the issue time. |
-
-## Cities and hazards
-
-Each crisis keeps its own identity. The links between crises, and between each crisis and the
-systems it reaches, are modeled rather than collapsed into one index.
-
-| Scenario | Cities | Hazard and cascade |
-| --- | --- | --- |
-| Monsoon cloudburst · 23 Sep 2023 | Nagpur | Reconstruction of the pre-dawn cloudburst (about 106 mm in four hours, Ambazari Lake overflowing into the Nag). Timing and totals follow IMD-reported figures; city telemetry is modeled. |
-| Chlorine release | Nagpur | Cylinder failure at the Seminary Hills water treatment plant. Gaussian plume (Briggs class C) on the wind axis; closures load the roads ambulances need. |
-| Immersion-day crowds meet a storm | Nagpur | Processions converge on Gandhi Sagar and Futala while a thunderstorm builds. A crowd crisis and a flood crisis run concurrently. |
-| Grid fault and telecom blackout | any | A transmission fault drops a substation cluster. Mobile sites run down their batteries, calls stop reaching dispatch, hospitals burn diesel. |
-| Tropical rainfall, flash flood, heat wave + derecho | any | Weather-driven cascades through drainage, roads, power and care. |
-| **Live weather · GFS ensemble** | any | The 31 GFS members fetched for the city become the hazard prior. You get 24 h of history and 48 h of forecast. |
-
-| | Nagpur | Raleigh (unseen city) |
-| --- | --- | --- |
-| Monitored facilities | 57 (13 drainage incl. a pumping station, 13 junctions, 9 substations, 5 telecom, 4 EMS, 6 hospitals, 7 weather) | 44 (no telecom: the generic engine adapts) |
-| Candidate links | 102, of which 7 are deliberately spurious | 71, of which 7 are deliberately spurious |
-| Modeled population | 2.94 M on 450 m cells, from street, building and water density | 0.45 M |
-| Languages for alerts | English, Hindi, Marathi (helpline 112, ambulance 108) | English, Spanish (911) |
-
-## How the intelligence layer meets the brief
-
-| Requirement | Implementation |
-| --- | --- |
-| **Multi-horizon forecasting** | 200-member ensemble. Each facility gets P(critical) and a fan chart at +1/6/12/24/48 h, plus time-to-critical with p10–p90. |
-| **Dependency discovery** | No structure is given. Candidate links are learned online by sparse Bayesian regression (ARD) and end up confirmed, pruned or still awaiting evidence. A raw-stream screen (lagged correlation, with weather partialled out) checks the structure at system level. |
-| **Cascade prediction** | Lagged propagation with feedback loops (hospital → EMS → hospital, load transfer between substations), branching, and interacting crises. **Cascade-R** compares stress arriving through dependencies with stress arriving straight from the hazard. In the monsoon replay it goes from 0 to 1.05 at T+46, when the cascade becomes self-sustaining. Forecast from T+37, it predicts the same crossing. |
-| **Crisis identification** | Crises are connected components of stressed facilities, joined where stress flows along a learned link now or is forecast to. Each gets a type from the scenario's hazard priority (a flood that jams roads is still a flood), a stage (precursor, emerging, escalating, active, recovering) and a footprint. Separate river systems come out as separate crises (the Nag vs the Pili). |
-| **Online learning under drift** | Localized particle filter with forgetting (about a 23 h memory) and adaptive tempering, which keeps the effective sample size at or above 12%. |
-| **Uncertainty and adversity** | Sensor trust comes from four signals: spread-normalized residuals, flatline detection, a **buddy check** across rain gauges and a physical **step test** (no facility can move faster than its response rate). Citizen reports are scored against the severity they claim. Every trusted value carries a spread. |
-| **Causal explainability** | Every risk value decomposes into baseline, hazard and each upstream link (posterior weight ± sd, lag, mechanism, upstream reading and its trust). |
-| **Constrained counterfactuals** | The action catalogue is generated from each city's dependency graph: pumps, early closures with signed detours, ambulance staging, mobile generation, flood barriers, telecom fuel, evacuation, load balancing. Each action is re-simulated from the decision time on the most probable members. A greedy planner chooses within the crew budget. **Decision deadlines** re-run the plan with later starts: on the monsoon run, starting by T+47 keeps 80% of the benefit, while the chlorine release has to be acted on at once. |
-| **Generalization** | Raleigh runs on the same engine, catalogue generator and analytics without retuning. |
-| **Temporal validation** | Historical mode replays the window. Every forecast uses only data up to its time stamp and is scored against the hidden truth. |
-
-### Red team
-
-The console attacks the observation stream: a frozen river gauge, a spoofed SCADA spike, a
-tampered rain gauge, a burst of 12 coordinated bot reports, and a 60% telemetry blackout. The
-attacked twin is rebuilt from scratch on the poisoned streams and scored against the clean run.
-On the Nagpur monsoon:
-
-- **Spoofed spike from a calm state.** The step test catches it on the first reading: the raw feed says 95%, the twin moves from 35% to 47%.
-- **Frozen gauge during the rise.** Flagged after 3.5 h. The twin holds 100% (the truth) while the raw feed still says 44%.
-- **Spike near a plausible level.** Not flagged, because it can't be told from a real rise. The console says so instead of hiding it.
-- **Bot reports.** Claims of collapse in places the twin shows as NORMAL score about 6% corroboration and are held. Reports never drive the forecast directly.
-
-### Replay validation
-
-Warning rule: P(critical within 24 h) ≥ 60%.
-
-| City | Scenario | Brier | Skill vs climatology | Detection | False alarms | Median lead |
-| --- | --- | --- | --- | --- | --- | --- |
-| Nagpur | Monsoon cloudburst 2023 | 0.040 | +0.81 | 85% | 0% | 22.5 h |
-| Nagpur | Tropical rainfall | 0.060 | +0.74 | 96% | 13% | 20.5 h |
-| Nagpur | Flash flood | 0.079 | +0.67 | 75% | 0% | 16.0 h |
-| Nagpur | Heat wave | 0.023 | +0.80 | 94% | 0% | 18.5 h |
-| Nagpur | Grid fault and telecom blackout | 0.017 | +0.68 | 50% | 0% | 21.5 h |
-| Raleigh | Tropical rainfall | 0.076 | +0.59 | 82% | 25% | 19.0 h |
-| Raleigh | Flash flood | 0.070 | +0.63 | 77% | 5% | 16.5 h |
-| Raleigh | Heat wave | 0.019 | +0.81 | 77% | 0% | 23.0 h |
-
-These numbers come from a synthetic ground truth generated by the same family of models. They
-show that the pipeline works end to end and is honestly isolated from future data. They are not
-evidence of real-world skill. The festival and chlorine scenarios have too few critical events
-for a stable score.
-
-## Communications
-
-- **SITREP.** A plain-text situation report with these sections: situation, active crises and their interactions, forecast of the next CRITICAL crossings, worst facility per system, information integrity (quarantined feeds, corroborated vs held reports), recommended actions with the decision deadline, and next report. Copy or download it.
-- **CAP 1.2.** An OASIS Common Alerting Protocol alert per crisis. It has one `<info>` block per language and severity, urgency and certainty derived from the forecast. The area polygon is the crisis footprint. It also carries `CrisisID`, `Stage`, `PeopleExposed` and `CascadeR` parameters. Status is `Exercise` because the streams are replayed.
-- **Public alerts.** SMS / cell-broadcast text per crisis area from reviewed templates per hazard type. A segment counter knows that Devanagari forces UCS-2 (70 characters per segment).
-
-## What is real and what is modeled
-
-| Real (OpenStreetMap, ODbL; public records) | Modeled for the simulation |
-| --- | --- |
-| Buildings, streets, rivers, lakes and parks: OpenMapTiles vector tiles for both cities | Hazard scenarios and the hidden "ground truth" run |
-| Nagpur: Nag, Pili and Pohara crossings; Ambazari and Gorewada spillways; Mankapur, Besa, Pardi, Uppalwadi and Hingna substations; GMC, Mayo, Wockhardt, Care and Orange City hospitals; Chhatrapati, Ajni, Jhansi Rani, Zero Mile and other squares | Risk indices, capacities, sensor IDs and readings |
-| Substation service areas (Voronoi), dependency routes by Dijkstra on the real street and waterway graphs | Dependency weights in the ground-truth run; injected faults and false reports |
-| Live mode: the GFS ensemble from Open-Meteo | Population distribution (scaled to census totals) |
-
-## Layout
+## Repository
 
 ```
-index.html                 website home; graph, lab, scenarios, live, citizen, method .html pages
-twin.html, config.js       operations room shell and runtime configuration (?city=, ?scenario=, ?select=, ?plan=)
-src/css/                   tokens, layout, panels, map chrome, operations layer; site.css + pages.css for the website
-src/js/core.js             risk vocabulary, seeded RNG, geo helpers, time zones
-src/js/engine/
-  scenarios.js             hazards: rain, heat, grid fault, plume, crowds
-  engine.js                ensemble, assimilation, trust QC, dependency learning, alerts, validation
-  interventions.js         graph-generated catalogue, counterfactuals, planner, deadlines, ghost trajectories
-  analytics.js             Cascade-R (nowcast and forecast) and the crisis registry
-  comms.js                 SITREP, CAP 1.2, multilingual SMS
-  redteam.js               attack scripts and scoring against the clean control
-  live.js                  Open-Meteo GFS ensemble → live scenario
-src/js/map/                basemap, layers (incl. population massing, crisis footprints), markers, radar
-src/js/ui/                 sidebar, inspector, timeline, drawers, ops drawers, app orchestrator
-src/js/site/               website: worker RPC (rpc.js, twin-worker.js), chrome and palette (site.js),
-                           city canvas (citycanvas.js) and one script per page
-src/js/data/               generated geodata per city (geodata.js = Raleigh, geodata_nagpur.js)
-data/tiles, data/fonts     baked OpenMapTiles vector tiles and label glyphs
-tools/                     data pipeline and tests
-docs/ROADMAP.md            gap analysis against the brief and build status
+index.html … method.html, twin.html     website pages and the operations room
+config.js                               runtime configuration
+data/tiles, data/fonts                  OpenMapTiles vector tiles and glyphs (offline)
+src/css/                                design tokens and styles (twin + website)
+src/js/core.js                          shared vocabulary and helpers
+src/js/data/                            generated geodata (Nagpur, Raleigh)
+src/js/engine/                          scenarios, engine, interventions, analytics, comms, redteam, live
+src/js/map/                             MapLibre layers, markers, radar, bootstrap
+src/js/ui/                              operations-room panels, drawers, orchestrator
+src/js/site/                            website: worker RPC, chrome, city canvas, page scripts
+tools/                                  dev server, data pipeline, single-file build, doc generator, tests
+docs/                                   this documentation, screenshots, generated references
 ```
 
-### Data pipeline
+File-by-file: [Architecture § Repository map](docs/02-architecture.md#repository-map).
+
+## Honest about what is real
+
+| Real | Simulated and labelled |
+| --- | --- |
+| Streets, rivers, lakes, buildings, substations, hospitals, fire stations, junctions (OpenStreetMap) | sensor readings, bed counts, feeder loads, ambulance times |
+| Storm timing and totals for the 2023 replay (IMD-reported) | link weights in the hidden world; planted faults and false reports |
+| Live 31-member weather ensembles (Open-Meteo GFS) | population distribution (scaled to city totals) |
+
+## Tests
 
 ```bash
-python3 tools/fetch_tiles.py data/tiles --extent 78.985 21.050 79.195 21.240   # Nagpur tiles
-python3 tools/build_data.py --city nagpur                                      # → geodata_nagpur.js
-python3 tools/build_data.py                                                    # Raleigh → geodata.js
+node tools/test/qc_regress.js                       # skill and sensor flags, every city × scenario
+node tools/test/ops_probe.js nagpur monsoon2023 47  # Cascade-R, crises, comms, planner, red team
+node tools/gen_docs.js                              # regenerate docs/reference/*.md
 ```
 
-`tools/spec_<city>.py` is the authored knowledge base for a city: which facilities are monitored
-and which links engineers consider possible. `build_data.py` places gauges at exact river × road
-crossings, routes links on the street and waterway graphs, computes substation service areas and
-the population grid. To add a city, write its spec, fetch its tiles, build its geodata and add it
-to the city list in `src/js/ui/app.js`.
+More in [Development § Tests](docs/09-development.md#tests-and-probes).
 
-### Tests
-
-```bash
-node tools/test/qc_regress.js                       # validation skill and sensor flags, every city × scenario
-node tools/test/ops_probe.js nagpur monsoon2023 47  # Cascade-R, crises, comms, planner, deadlines, red team
-node tools/test/engine_probe.js tropical            # engine timeline, learning, validation
-node tools/test/interventions_probe.js              # counterfactual planner
-python3 tools/test/csp_server.py 8766               # serve dist/ under a strict CSP
-```
-
-## Attribution
+## Credits
 
 Map data © OpenStreetMap contributors (ODbL) · tiles © OpenMapTiles, served by OpenFreeMap ·
-weather ensemble © Open-Meteo (CC BY 4.0), GFS by NOAA · rendering by MapLibre GL JS (BSD-3).
+weather ensemble © Open-Meteo (CC BY 4.0), GFS by NOAA · rendering by MapLibre GL JS (BSD-3) ·
+fonts Barlow, IBM Plex Mono, Noto Sans Devanagari (SIL OFL). The base UI was imported from
+[shreyascoder2006/72_UI](https://github.com/shreyascoder2006/72_UI) and extended. Decision support
+only: it proposes, people decide.

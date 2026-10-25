@@ -2,6 +2,7 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.resolve(__dirname, '../..'); global.window = global;
 for (const f of ['src/js/data/geodata.js', 'src/js/core.js', 'src/js/engine/scenarios.js', 'src/js/engine/engine.js', 'src/js/engine/interventions.js'])
   vm.runInThisContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), { filename: f });
+global.TWIN_GEO = global.TWIN_GEO || global.TWIN_GEOS.raleigh; // multi-city geodata: these probes target Raleigh
 const E = TWIN.engine.create(TWIN_GEO, { scenario: 'tropical' });
 const I = TWIN.interventions.create(E);
 const k = E.kOf(34.5);

@@ -1,7 +1,7 @@
 // Phone-width check: no horizontal overflow, drawer opens, inspector covers the screen.
 const { chromium } = require('playwright');
 (async () => {
-  const url = process.argv[2] || 'http://127.0.0.1:8765/index.html', out = process.argv[3] || '.';
+  const url = process.argv[2] || 'http://127.0.0.1:8000/twin.html', out = process.argv[3] || '.';
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ctx = await browser.newContext({ viewport: { width: 400, height: 860 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const p = await ctx.newPage();

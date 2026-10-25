@@ -61,3 +61,12 @@ This repository started as an import of [`shreyascoder2006/72_UI`](https://githu
 | 8 | Communications | Built. SITREP, CAP 1.2 (one info block per language, footprint polygon) and SMS with GSM-7 / UCS-2 segment counts. |
 | 9 | Live weather | Built. Runs in the browser against Open-Meteo (CORS), so it works from any static server. The single-file CSP build (`connect-src 'self'`) keeps it offline by design. |
 | 10 | Population massing | Built as an extruded 450 m square grid scaled to census totals (not H3). |
+
+## Status · 25 Oct 2026, later
+
+| Item | Status |
+| --- | --- |
+| Multi-page website | Built: home with the replayed cloudburst and "poke the city", knowledge graph, intervention lab, scenarios, live, My area and method pages around the operations room (`twin.html`). The engine runs in a Web Worker pool; a command palette (Ctrl K) covers every page, scenario and facility. |
+| Operations room deep links | `?select=`, `?scenario=live`, `?plan=&k=` (a lab plan opens as a ghost city) |
+| Documentation | README index, ten narrative documents in `docs/`, and generated references (`docs/reference/`) produced by `tools/gen_docs.js` |
+| Still open | separate resource pools (pumps, generators, ambulances) instead of one crew budget; real telemetry connectors; metric units in the inspector readings |

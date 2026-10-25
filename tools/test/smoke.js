@@ -2,7 +2,7 @@
 //   node tools/test/smoke.js <url> <outdir>
 const { chromium } = require('playwright');
 (async () => {
-  const url = process.argv[2] || 'http://127.0.0.1:8765/index.html';
+  const url = process.argv[2] || 'http://127.0.0.1:8000/twin.html';
   const out = process.argv[3] || '.';
   const proxy = process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY, bypass: '127.0.0.1,localhost' } : undefined;
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'], proxy });
